@@ -1,0 +1,1658 @@
+Yes. Let's move from the high-level specification into the **actual engineering blueprint**. At this stage, we should make enough decisions that when we later give MonkeyCode prompts, it has very little room to invent architecture.
+
+# NCA Batch 4 Private CTF
+
+## Planning Stage 2 — Technical Architecture & Implementation Blueprint
+
+**Version:** 0.1
+**Status:** Planning
+**Target:** Private NCA Batch 4 cybersecurity competition
+**Primary deployment:** Local/Docker → NCA infrastructure/VPS later
+
+---
+
+# 1. V1 Feature Freeze
+
+Before writing code, let's define exactly what **Version 1** will contain.
+
+## Participant Features
+
+### Authentication
+
+* Registration
+* Login
+* Logout
+* Password hashing
+* Session management
+* Password reset
+* Account activation
+* Batch access code
+
+### Dashboard
+
+* Current score
+* Team
+* Team rank
+* Challenges solved
+* Recent solves
+* Announcements
+
+### Teams
+
+* Create team
+* Join team
+* Team invitation
+* Team captain
+* Team member list
+* Team statistics
+
+### Challenges
+
+Categories:
+
+* Web
+* Pwn
+* Crypto
+* General/Misc
+
+Each challenge supports:
+
+* Name
+* Description
+* Category
+* Difficulty
+* Points
+* Files
+* Target
+* Flag submission
+* Hints
+* Solve status
+* First Blood
+
+### Leaderboard
+
+* Team ranking
+* Score
+* Solved count
+* First Blood
+* Last solve
+* Disqualified status
+
+### Admin
+
+* Dashboard
+* Users
+* Teams
+* Challenges
+* Submissions
+* Leaderboard
+* Announcements
+* Integrity monitoring
+* Audit logs
+* Disqualification
+
+### Infrastructure
+
+* Docker challenges
+* Start/stop
+* Restart
+* Reset
+* Challenge health
+* Container status
+
+---
+
+# 2. Things We Should NOT Build Yet
+
+This is important.
+
+Don't let the project explode in scope.
+
+V1 will **not** have:
+
+* Mobile app
+* Kubernetes
+* AI challenge generation
+* Live terminal in browser
+* VM spawning
+* Individual VM per player
+* Advanced behavioral biometrics
+* Automated cheating bans
+* Public registration
+* Payments
+* Social features
+
+We can add these later.
+
+---
+
+# 3. System Architecture
+
+The architecture should have **four separate layers**.
+
+```text
+                     INTERNET / LAN
+                           │
+                           ▼
+                 ┌───────────────────┐
+                 │   CTF WEB APP     │
+                 │                   │
+                 │ Auth              │
+                 │ Teams             │
+                 │ Challenges        │
+                 │ Leaderboard       │
+                 │ Admin             │
+                 └─────────┬─────────┘
+                           │
+                  ┌────────┴─────────┐
+                  │                  │
+                  ▼                  ▼
+           ┌─────────────┐    ┌──────────────┐
+           │  DATABASE   │    │ INTEGRITY    │
+           │             │    │ ENGINE       │
+           └─────────────┘    └──────┬───────┘
+                                     │
+                                     ▼
+                           ┌──────────────────┐
+                           │ CHALLENGE LAYER  │
+                           │                  │
+                           │ Docker Web       │
+                           │ Docker Pwn       │
+                           │ Downloadables    │
+                           └──────────────────┘
+```
+
+The important boundary is:
+
+```text
+CTF Application ≠ Vulnerable Challenge
+```
+
+---
+
+# 4. Database Architecture
+
+Let's define the database before MonkeyCode writes application code.
+
+## Core tables
+
+```text
+users
+roles
+teams
+team_members
+team_invitations
+
+categories
+challenges
+challenge_files
+challenge_hints
+flags
+
+submissions
+solves
+first_bloods
+
+announcements
+
+docker_instances
+
+integrity_events
+integrity_evidence
+
+audit_logs
+disqualifications
+
+system_settings
+```
+
+---
+
+# 5. Users Table
+
+```text
+users
+
+id
+username
+email
+password_hash
+full_name
+role_id
+status
+batch_code
+created_at
+updated_at
+last_login
+```
+
+Possible status:
+
+```text
+active
+pending
+suspended
+disqualified
+```
+
+Never store:
+
+```text
+plain_password
+```
+
+---
+
+# 6. Roles
+
+```text
+roles
+
+id
+name
+```
+
+Example:
+
+```text
+participant
+team_captain
+challenge_admin
+super_admin
+```
+
+---
+
+# 7. Teams
+
+```text
+teams
+
+id
+name
+slug
+captain_id
+score
+status
+created_at
+updated_at
+```
+
+Status:
+
+```text
+active
+frozen
+disqualified
+```
+
+---
+
+# 8. Team Members
+
+```text
+team_members
+
+id
+team_id
+user_id
+joined_at
+status
+```
+
+This gives us a proper many-to-many relationship:
+
+```text
+Team
+ │
+ ├── User A
+ ├── User B
+ └── User C
+```
+
+---
+
+# 9. Challenges
+
+```text
+challenges
+
+id
+title
+slug
+description
+category_id
+difficulty
+points
+author_id
+
+challenge_type
+deployment_type
+
+target_url
+target_host
+target_port
+
+flag_hash
+
+status
+
+created_at
+updated_at
+```
+
+Example:
+
+```text
+challenge_type:
+web
+
+deployment_type:
+docker
+```
+
+Crypto:
+
+```text
+challenge_type:
+crypto
+
+deployment_type:
+download
+```
+
+---
+
+# 10. Challenge Categories
+
+```text
+categories
+
+id
+name
+slug
+description
+icon
+sort_order
+```
+
+Example:
+
+```text
+Web
+Pwn
+Crypto
+General
+```
+
+This makes adding categories later easy.
+
+---
+
+# 11. Challenge Files
+
+```text
+challenge_files
+
+id
+challenge_id
+filename
+storage_path
+file_size
+checksum
+created_at
+```
+
+Example:
+
+```text
+challenge_files
+
+challenge_id: 17
+
+challenge.zip
+README.txt
+capture.pcap
+```
+
+**Important:** Uploaded files must not simply be placed in a publicly executable web directory.
+
+---
+
+# 12. Challenge Hints
+
+```text
+challenge_hints
+
+id
+challenge_id
+hint_text
+cost
+sort_order
+```
+
+Example:
+
+```text
+Hint 1
+Cost: 25 points
+
+Hint:
+Look at how the application handles user IDs.
+```
+
+When a team uses the hint:
+
+```text
+score -= 25
+```
+
+We'll decide later whether hints are V1 or V1.1.
+
+---
+
+# 13. Flags
+
+Instead of putting flags directly into the challenges table:
+
+```text
+flags
+
+id
+challenge_id
+flag_hash
+version
+created_at
+```
+
+This allows flags to be rotated.
+
+For example:
+
+```text
+Flag v1
+Flag v2
+```
+
+Useful if a challenge is compromised.
+
+---
+
+# 14. Submission Table
+
+This is one of the most important tables.
+
+```text
+submissions
+
+id
+
+user_id
+team_id
+challenge_id
+
+submitted_hash
+
+is_correct
+is_first_blood
+
+ip_address
+user_agent
+session_id
+
+submitted_at
+```
+
+We should store a **hash of the submitted flag**, rather than unnecessarily storing the plaintext flag.
+
+---
+
+# 15. Solves
+
+A successful submission creates a solve record.
+
+```text
+solves
+
+id
+
+team_id
+user_id
+challenge_id
+
+points_awarded
+hint_penalty
+
+solved_at
+```
+
+We can enforce:
+
+```text
+UNIQUE(team_id, challenge_id)
+```
+
+Therefore:
+
+> A team can only solve a challenge once.
+
+---
+
+# 16. First Blood
+
+```text
+first_bloods
+
+id
+challenge_id
+team_id
+user_id
+solved_at
+bonus_points
+```
+
+Only the first successful team receives it.
+
+---
+
+# 17. Docker Instances
+
+For challenge infrastructure:
+
+```text
+docker_instances
+
+id
+challenge_id
+
+container_id
+container_name
+
+host
+port
+
+status
+
+started_at
+stopped_at
+
+health_status
+```
+
+Example:
+
+```text
+challenge:
+Web SQL Injection
+
+container:
+nca-web-sqli-01
+
+port:
+5001
+
+status:
+running
+```
+
+---
+
+# 18. Integrity System Database
+
+This deserves its own subsystem.
+
+## Integrity Events
+
+```text
+integrity_events
+
+id
+
+event_type
+
+severity
+risk_score
+
+challenge_id
+
+team_id
+related_team_id
+
+status
+
+description
+
+created_at
+resolved_at
+resolved_by
+```
+
+Event types:
+
+```text
+POSSIBLE_FLAG_SHARING
+SUSPICIOUS_TIMING
+SUSPICIOUS_SOLVE_PATTERN
+MULTIPLE_ACCOUNT_ACTIVITY
+```
+
+---
+
+# 19. Integrity Evidence
+
+```text
+integrity_evidence
+
+id
+integrity_event_id
+
+evidence_type
+evidence_data
+
+created_at
+```
+
+Example:
+
+```text
+Evidence:
+
+Team Alpha solved at:
+14:30:01
+
+Team Beta solved at:
+14:30:04
+
+Difference:
+3 seconds
+```
+
+---
+
+# 20. Audit Logs
+
+Everything important should be logged.
+
+```text
+audit_logs
+
+id
+
+user_id
+action
+
+entity_type
+entity_id
+
+ip_address
+user_agent
+
+metadata
+
+created_at
+```
+
+Example:
+
+```text
+ADMIN_UPDATED_CHALLENGE
+```
+
+or:
+
+```text
+TEAM_DISQUALIFIED
+```
+
+---
+
+# 21. Disqualification
+
+```text
+disqualifications
+
+id
+
+team_id
+user_id
+
+reason
+
+issued_by
+
+integrity_event_id
+
+created_at
+```
+
+Never delete the team's historical data.
+
+---
+
+# 22. Page Architecture
+
+Now let's define every important page.
+
+## Public
+
+```text
+/
+├── About
+├── Rules
+├── Login
+└── Register
+```
+
+---
+
+## Participant
+
+```text
+/dashboard
+/challenges
+/challenges/{slug}
+/leaderboard
+/team
+/profile
+/announcements
+```
+
+---
+
+## Admin
+
+```text
+/admin
+/admin/users
+/admin/teams
+/admin/challenges
+/admin/challenges/create
+/admin/challenges/{id}/edit
+/admin/submissions
+/admin/leaderboard
+/admin/integrity
+/admin/integrity/{id}
+/admin/containers
+/admin/announcements
+/admin/audit-logs
+/admin/settings
+```
+
+---
+
+# 23. Participant Dashboard
+
+The dashboard should immediately show:
+
+```text
+┌─────────────────────────────────────────────┐
+│ NCA BATCH 4 CTF                             │
+├─────────────────────────────────────────────┤
+│                                             │
+│ Welcome, Jerry                              │
+│ Team: Cyber Wolves                          │
+│                                             │
+│ Score          Rank          Solved          │
+│ 850            #4            7 / 30         │
+│                                             │
+├─────────────────────────────────────────────┤
+│ Recent Solves                               │
+│                                             │
+│ Web 01             +100                     │
+│ Crypto 02          +200                     │
+│ Misc 01             +100                    │
+│                                             │
+├─────────────────────────────────────────────┤
+│ Announcements                               │
+└─────────────────────────────────────────────┘
+```
+
+---
+
+# 24. Challenge Page
+
+This should become one of the most important UI components.
+
+```text
+┌──────────────────────────────────────────┐
+│ SQL Injection 101                        │
+│ WEB • EASY                               │
+│                                          │
+│ 100 POINTS                               │
+├──────────────────────────────────────────┤
+│ Description                              │
+│                                          │
+│ ...                                      │
+│                                          │
+├──────────────────────────────────────────┤
+│ TARGET                                   │
+│ http://challenge-url:5001                │
+├──────────────────────────────────────────┤
+│ FILES                                    │
+│ challenge.zip                            │
+├──────────────────────────────────────────┤
+│ FLAG                                     │
+│ [ NCA{________________________} ]        │
+│                                          │
+│             [ SUBMIT FLAG ]              │
+└──────────────────────────────────────────┘
+```
+
+---
+
+# 25. Challenge Status
+
+A challenge can be:
+
+```text
+Draft
+Testing
+Published
+Running
+Paused
+Archived
+```
+
+Participants only see:
+
+```text
+Published
+```
+
+---
+
+# 26. Admin Challenge Workflow
+
+Admin creates:
+
+```text
+Draft
+  ↓
+Configure
+  ↓
+Upload files
+  ↓
+Configure Docker
+  ↓
+Test
+  ↓
+Publish
+  ↓
+Running
+```
+
+This prevents half-configured challenges from becoming visible.
+
+---
+
+# 27. Docker Architecture
+
+We should separate three types of challenges.
+
+## Type A — Downloadable
+
+```text
+Crypto
+General
+Forensics
+Reverse
+```
+
+No server required.
+
+---
+
+## Type B — HTTP
+
+```text
+Web
+```
+
+Example:
+
+```text
+Student
+   │
+   ▼
+CTF Platform
+   │
+   │ target URL
+   ▼
+Docker Web Challenge
+```
+
+---
+
+## Type C — TCP
+
+```text
+Pwn
+```
+
+Example:
+
+```text
+nc server port
+      │
+      ▼
+Pwn Container
+```
+
+---
+
+# 28. Network Isolation
+
+This is extremely important.
+
+Don't do:
+
+```text
+Docker
+│
+├── CTF
+├── Database
+├── Web vulnerable container
+└── Pwn vulnerable container
+```
+
+with unrestricted communication.
+
+Instead:
+
+```text
+                    CTF Network
+                         │
+              ┌──────────┴──────────┐
+              │                     │
+          CTF App                Database
+              
+              
+                 Challenge Network
+                         │
+              ┌──────────┼──────────┐
+              │          │          │
+           Web01       Web02      Pwn01
+```
+
+Challenge containers should have **only the network access they actually need**.
+
+---
+
+# 29. Anti-Cheat Architecture
+
+The integrity system should work asynchronously.
+
+```text
+Flag Submission
+       │
+       ▼
+Submission Engine
+       │
+       ├── Validate Flag
+       │
+       ├── Award Score
+       │
+       └── Generate Event
+                  │
+                  ▼
+           Integrity Engine
+                  │
+       ┌──────────┼──────────┐
+       │          │          │
+    Timing       IP       Pattern
+    Analysis   Analysis   Analysis
+       │          │          │
+       └──────────┼──────────┘
+                  ▼
+             Risk Score
+                  │
+                  ▼
+            Integrity Event
+                  │
+                  ▼
+              Admin Review
+```
+
+---
+
+# 30. Important Anti-Cheat Rule
+
+**The system should never automatically disqualify a team solely based on an algorithm.**
+
+Instead:
+
+```text
+Algorithm
+   ↓
+Suspicion
+   ↓
+Evidence
+   ↓
+Admin
+   ↓
+Decision
+```
+
+This prevents false positives.
+
+For example:
+
+> Ten students sharing the same NCA Wi-Fi doesn't mean they're cheating.
+
+---
+
+# 31. Scoring Engine
+
+Keep scoring as a separate service/module.
+
+Input:
+
+```text
+team
+challenge
+submission
+```
+
+Output:
+
+```text
+points
+first_blood
+new_score
+new_rank
+```
+
+Example:
+
+```text
+Challenge = 200
+
+First Blood Bonus = 25
+
+Final = 225
+```
+
+Later we can support dynamic scoring without rewriting the submission system.
+
+---
+
+# 32. API Architecture
+
+Even if the frontend is server-rendered, keep business operations logically separated.
+
+Example:
+
+```text
+POST /api/auth/login
+
+POST /api/auth/register
+
+GET /api/challenges
+
+GET /api/challenges/{id}
+
+POST /api/challenges/{id}/submit
+
+GET /api/leaderboard
+
+GET /api/team
+
+POST /api/team/create
+```
+
+Admin:
+
+```text
+POST /api/admin/challenges
+
+PUT /api/admin/challenges/{id}
+
+DELETE /api/admin/challenges/{id}
+
+GET /api/admin/submissions
+
+GET /api/admin/integrity
+
+POST /api/admin/integrity/{id}/resolve
+```
+
+The exact URL conventions can be finalized when we design the backend.
+
+---
+
+# 33. Security Model
+
+Every request should pass through:
+
+```text
+Request
+  ↓
+Session Authentication
+  ↓
+Authorization
+  ↓
+Input Validation
+  ↓
+Business Logic
+  ↓
+Database
+```
+
+For admin:
+
+```text
+Request
+  ↓
+Authenticated?
+  ↓
+Role authorized?
+  ↓
+CSRF valid?
+  ↓
+Action
+```
+
+---
+
+# 34. Session Security
+
+We should require:
+
+```text
+HttpOnly cookies
+Secure cookies in production
+SameSite=Lax/Strict
+Session regeneration after login
+Session expiration
+Logout invalidation
+```
+
+And never place authentication tokens in:
+
+```text
+URL parameters
+```
+
+---
+
+# 35. File Security
+
+Challenge files are potentially dangerous.
+
+We need:
+
+```text
+Upload
+ ↓
+Validate extension
+ ↓
+Validate MIME
+ ↓
+Generate server-side filename
+ ↓
+Store outside executable web directory
+ ↓
+Checksum
+ ↓
+Controlled download
+```
+
+Do not allow uploaded PHP files to become executable.
+
+---
+
+# 36. Admin Dashboard
+
+The admin home should show:
+
+```text
+NCA BATCH 4 ADMIN
+
+Participants     64
+Teams            16
+Challenges       32
+Solves           184
+
+Running Containers 12
+
+Integrity Alerts
+Critical: 1
+High:     2
+Medium:   4
+```
+
+Then:
+
+```text
+Recent Activity
+Recent Solves
+Recent Alerts
+Container Status
+```
+
+---
+
+# 37. Challenge Infrastructure Dashboard
+
+Example:
+
+```text
+Challenge Infrastructure
+
+┌──────────────────────────────────────────┐
+│ Web SQLi                                 │
+│ Container: nca-web-01                    │
+│ Status: 🟢 RUNNING                       │
+│ Port: 5001                               │
+│ Health: OK                               │
+│                                          │
+│ [Restart] [Stop] [Reset] [Logs]          │
+└──────────────────────────────────────────┘
+```
+
+---
+
+# 38. Development Environment
+
+For our initial implementation:
+
+```text
+Operating System
+Linux
+
+Web Server
+Nginx
+
+Backend
+PHP 8.x
+
+Database
+MariaDB/MySQL
+
+Containerization
+Docker + Docker Compose
+
+Version Control
+Git
+
+Development
+VS Code
+```
+
+The whole project should be able to start with something conceptually like:
+
+```bash
+docker compose up -d
+```
+
+Eventually.
+
+---
+
+# 39. Repository Structure
+
+Let's settle this now:
+
+```text
+nca-batch4-ctf/
+│
+├── app/
+│   ├── Controllers/
+│   ├── Models/
+│   ├── Services/
+│   ├── Middleware/
+│   └── Helpers/
+│
+├── config/
+│
+├── database/
+│   ├── migrations/
+│   └── seeders/
+│
+├── public/
+│
+├── resources/
+│   ├── views/
+│   ├── css/
+│   └── js/
+│
+├── storage/
+│   ├── logs/
+│   ├── uploads/
+│   └── challenge-files/
+│
+├── challenges/
+│   ├── web/
+│   ├── pwn/
+│   ├── crypto/
+│   └── misc/
+│
+├── docker/
+│
+├── scripts/
+│
+├── tests/
+│
+├── docs/
+│
+├── routes/
+│
+├── .env.example
+├── docker-compose.yml
+├── composer.json
+└── README.md
+```
+
+---
+
+# 40. Development Order
+
+This is the exact order I recommend.
+
+### Stage 1
+
+**Foundation**
+
+```text
+Project
+Database
+Configuration
+Routing
+Basic UI
+```
+
+### Stage 2
+
+**Authentication**
+
+```text
+Register
+Login
+Logout
+Sessions
+RBAC
+```
+
+### Stage 3
+
+**Teams**
+
+```text
+Create
+Join
+Invite
+Members
+Captain
+```
+
+### Stage 4
+
+**Challenges**
+
+```text
+Categories
+Challenge CRUD
+Files
+Flags
+Challenge page
+```
+
+### Stage 5
+
+**Submission Engine**
+
+```text
+Submit
+Validate
+Solve
+Score
+First Blood
+```
+
+### Stage 6
+
+**Leaderboard**
+
+```text
+Ranking
+Statistics
+Team score
+```
+
+### Stage 7
+
+**Admin**
+
+```text
+Users
+Teams
+Challenges
+Submissions
+Announcements
+```
+
+### Stage 8
+
+**Docker**
+
+```text
+Docker integration
+Web challenges
+Pwn challenges
+Container lifecycle
+```
+
+### Stage 9
+
+**Integrity**
+
+```text
+Logging
+Detection
+Risk scoring
+Evidence
+Investigation
+Disqualification
+```
+
+### Stage 10
+
+**Security testing**
+
+```text
+VAPT
+Hardening
+Load testing
+Container testing
+```
+
+### Stage 11
+
+**Deployment**
+
+```text
+Production
+TLS
+Backups
+Monitoring
+```
+
+---
+
+# 41. MonkeyCode Development Strategy
+
+This is extremely important.
+
+We should **not give MonkeyCode this entire document and say "build it."**
+
+Instead, we'll create a series of controlled implementation prompts.
+
+For example:
+
+### Prompt 01
+
+> Build the project foundation according to the architecture specification. Do not implement authentication, challenges, teams, or admin functionality yet.
+
+Then test it.
+
+### Prompt 02
+
+> Implement the database schema...
+
+Test.
+
+### Prompt 03
+
+> Implement authentication...
+
+Test.
+
+And so on.
+
+Each prompt will tell MonkeyCode:
+
+* What to implement
+* What files it may modify
+* What it must not modify
+* Security requirements
+* Expected behavior
+* Acceptance criteria
+
+This dramatically reduces AI-generated spaghetti code.
+
+---
+
+# 42. Acceptance Criteria
+
+Every module should have a definition of "done."
+
+For example:
+
+### Authentication is complete when:
+
+```text
+✓ Registration works
+✓ Duplicate email prevented
+✓ Duplicate username prevented
+✓ Password securely hashed
+✓ Login works
+✓ Invalid login rejected
+✓ Session regenerated
+✓ Logout works
+✓ RBAC works
+✓ Unauthorized pages rejected
+✓ SQL injection tested
+✓ XSS tested
+✓ CSRF tested
+```
+
+We'll do this for every module.
+
+---
+
+# 43. Development Milestones
+
+Our project board can look like:
+
+```text
+NCA BATCH 4 CTF
+│
+├── [ ] Architecture
+├── [ ] Database
+├── [ ] UI Design
+│
+├── [ ] Authentication
+├── [ ] RBAC
+├── [ ] Teams
+├── [ ] Challenges
+├── [ ] Flag System
+├── [ ] Submission
+├── [ ] Scoring
+├── [ ] Leaderboard
+│
+├── [ ] Admin
+├── [ ] Docker
+├── [ ] Web Challenges
+├── [ ] Pwn Challenges
+│
+├── [ ] Integrity Engine
+├── [ ] Audit Logs
+├── [ ] Disqualification
+│
+├── [ ] Security Testing
+├── [ ] Deployment
+└── [ ] Documentation
+```
+
+---
+
+# 44. One Major Design Decision We Should Make Now
+
+Before we move to MonkeyCode, there are **three things I recommend we design in detail next**:
+
+### A. ER Diagram
+
+We need to finalize relationships like:
+
+```text
+User
+ │
+ ├──── Team Member ──── Team
+ │                         │
+ │                         └── Team Members
+ │
+ └──── Submission ───── Challenge
+                           │
+                           ├── Category
+                           ├── Flag
+                           ├── Files
+                           └── Docker Instance
+```
+
+### B. Complete UI/UX specification
+
+We should define every page, navigation menu, modal, table, button, status badge, mobile behavior, and admin screen **before asking MonkeyCode to build the frontend**.
+
+### C. Docker/Challenge architecture
+
+We need to decide exactly how:
+
+```text
+Web challenge
+Pwn challenge
+Downloadable challenge
+```
+
+will be represented, deployed, reset, isolated and accessed.
+
+---
+
+## Recommended next step
+
+**I would do the next planning stage as the complete UI/UX + page specification.**
+
+We'll essentially design the whole application screen-by-screen:
+
+```text
+Landing
+Login
+Register
+Dashboard
+Challenges
+Challenge Details
+Team
+Leaderboard
+Profile
+Rules
+Admin Dashboard
+Users
+Teams
+Challenge Manager
+Submission Monitor
+Integrity Center
+Container Manager
+Audit Logs
+Settings
+```
+
+Then we can turn that into a **single authoritative UI specification for MonkeyCode**, followed by the database ERD and implementation prompts.

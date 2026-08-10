@@ -1,0 +1,1045 @@
+# NCA BATCH 4 PRIVATE CTF
+
+## Final Architecture Decisions & Specification Overrides
+
+**Document:** ctf9.txt
+**Version:** 1.0
+**Status:** Authoritative Architecture Decision
+**Purpose:** Resolve conflicts between ctf.txt through ctf8.txt before implementation.
+
+---
+
+# 1. Authority
+
+The following documents define the original project requirements:
+
+```text
+ctf.txt
+ctf2.txt
+ctf3.txt
+ctf4.txt
+ctf5.txt
+ctf6.txt
+ctf7.txt
+ctf8.txt
+```
+
+Where these documents conflict, **this document takes precedence**.
+
+The implementation agent must not silently choose between conflicting specifications.
+
+---
+
+# 2. Backend Architecture
+
+Use a layered PHP architecture.
+
+```text
+Routes
+   ↓
+Middleware
+   ↓
+Controllers
+   ↓
+Services
+   ↓
+Repositories
+   ↓
+Database
+```
+
+Recommended structure:
+
+```text
+app/
+├── Controllers/
+├── Models/
+├── Services/
+├── Repositories/
+├── Middleware/
+└── Infrastructure/
+```
+
+Do NOT introduce Laravel or another full framework unless explicitly approved later.
+
+Use:
+
+```text
+PHP 8.x
+PDO
+MySQL/MariaDB
+```
+
+---
+
+# 3. Frontend Architecture
+
+Use:
+
+```text
+HTML5
+CSS3
+Vanilla JavaScript
+```
+
+Do NOT introduce React, Vue, Angular, Svelte, or another frontend framework for V1.
+
+The component names described in ctf3 are conceptual reusable UI components.
+
+Implement reusable components using:
+
+```text
+JavaScript functions
+HTML templates
+Shared CSS
+```
+
+Examples:
+
+```text
+ChallengeCard()
+LeaderboardRow()
+StatCard()
+Modal()
+Toast()
+```
+
+---
+
+# 4. Project Structure
+
+Use:
+
+```text
+nca-ctf/
+│
+├── app/
+│   ├── Controllers/
+│   ├── Models/
+│   ├── Services/
+│   ├── Repositories/
+│   ├── Middleware/
+│   └── Infrastructure/
+│
+├── config/
+│
+├── database/
+│   ├── migrations/
+│   └── seeders/
+│
+├── public/
+│   ├── index.php
+│   ├── assets/
+│   └── uploads/
+│
+├── resources/
+│   ├── views/
+│   ├── css/
+│   └── js/
+│
+├── routes/
+│   └── api.php
+│
+├── admin/
+│
+├── challenges/
+│
+├── docker/
+│
+├── tests/
+│
+├── docs/
+│
+├── storage/
+│
+├── .env.example
+├── composer.json
+└── README.md
+```
+
+Challenge files and uploaded content must not be directly executable by the web server.
+
+---
+
+# 5. Authentication & Authorization
+
+Use four permission concepts:
+
+```text
+Global roles:
+- participant
+- challenge_admin
+- super_admin
+```
+
+Team-level role:
+
+```text
+team_captain
+```
+
+A participant can be a team captain without becoming a global administrator.
+
+Authorization must therefore consider:
+
+```text
+User Global Role
++
+Team Membership
++
+Team Captain Status
+```
+
+Never trust client-provided:
+
+```text
+role
+team_id
+user_id
+permissions
+score
+```
+
+---
+
+# 6. Authentication Security
+
+Use:
+
+```text
+PHP password_hash()
+Argon2id when available
+bcrypt fallback
+```
+
+Sessions must use:
+
+```text
+HttpOnly
+Secure
+SameSite
+```
+
+Session IDs must be regenerated after successful login.
+
+Implement:
+
+```text
+Registration
+Login
+Logout
+Change password
+Session expiration
+Authorization middleware
+```
+
+Password reset email infrastructure is NOT required for V1.
+
+Password reset can be added later.
+
+---
+
+# 7. Database Architecture
+
+The canonical database must support:
+
+```text
+roles
+users
+teams
+team_members
+team_invitations
+categories
+challenges
+challenge_files
+challenge_hints
+flags
+submissions
+solves
+first_bloods
+announcements
+docker_instances
+integrity_events
+integrity_evidence
+integrity_alerts
+risk_scores
+investigations
+disciplinary_actions
+account_relationships
+audit_logs
+system_settings
+```
+
+The exact final migration structure may add supporting tables where required, but must not duplicate equivalent concepts under different names.
+
+---
+
+# 8. Integrity System Tables
+
+Use the ctf7 model as authoritative.
+
+Primary integrity tables:
+
+```text
+integrity_events
+integrity_evidence
+integrity_alerts
+risk_scores
+investigations
+disciplinary_actions
+account_relationships
+audit_logs
+```
+
+Do NOT create separate competing systems named:
+
+```text
+disqualifications
+```
+
+Instead, disqualification is represented through:
+
+```text
+disciplinary_actions
+```
+
+with an appropriate action type/status.
+
+---
+
+# 9. Integrity Philosophy
+
+The integrity system is:
+
+```text
+Detection
+   ↓
+Evidence
+   ↓
+Risk Score
+   ↓
+Admin Review
+   ↓
+Decision
+   ↓
+Audit
+```
+
+A single suspicious signal must never automatically disqualify a participant.
+
+The system must provide evidence and allow administrators to make the final decision.
+
+---
+
+# 10. Anti-Cheat Boundaries
+
+The system may use reasonable CTF-related signals such as:
+
+```text
+Flag submission timing
+Submission history
+Flag fingerprints
+Team relationships
+Account relationships
+Shared flags
+Suspicious solve patterns
+IP correlation where appropriate
+Session correlation
+```
+
+The system must NOT implement:
+
+```text
+Keylogging
+Device fingerprinting
+Screen monitoring
+Invasive surveillance
+Reading private files
+Monitoring unrelated applications
+```
+
+Only competition-relevant data should be collected.
+
+---
+
+# 11. Competition States
+
+Use:
+
+```text
+UPCOMING
+REGISTRATION_OPEN
+LIVE
+PAUSED
+FINISHED
+ARCHIVED
+```
+
+State transitions must be controlled server-side.
+
+Example:
+
+```text
+UPCOMING
+    ↓
+REGISTRATION_OPEN
+    ↓
+LIVE
+    ↓
+PAUSED ↔ LIVE
+    ↓
+FINISHED
+    ↓
+ARCHIVED
+```
+
+---
+
+# 12. Team Configuration
+
+Default:
+
+```text
+Minimum team size: 1
+Maximum team size: 4
+```
+
+These values must be configurable through system settings.
+
+Do not hardcode them into application logic.
+
+---
+
+# 13. Team Rules
+
+Default V1 behavior:
+
+```text
+A user may belong to only one active team.
+```
+
+Support:
+
+```text
+Create team
+Join team
+Invite member
+Accept invitation
+Leave team
+Remove member
+Transfer captain
+```
+
+Team invitations must use secure, non-guessable tokens.
+
+Store only a secure representation of invitation tokens where practical.
+
+---
+
+# 14. Challenge Categories
+
+V1 categories:
+
+```text
+Web
+Pwn
+Crypto
+General
+```
+
+Categories must remain database-driven so additional categories can be added later.
+
+---
+
+# 15. Challenge Lifecycle
+
+Use:
+
+```text
+DRAFT
+TESTING
+PUBLISHED
+RUNNING
+PAUSED
+ARCHIVED
+```
+
+Only appropriate challenge states should be visible to participants.
+
+---
+
+# 16. Challenge Deployment Types
+
+Support:
+
+```text
+DOWNLOAD
+HTTP
+TCP
+```
+
+Challenge infrastructure must be separated from the CTF application.
+
+---
+
+# 17. Challenge Files
+
+Challenge files must:
+
+```text
+Have configurable size limits
+Be validated
+Be stored outside executable web paths
+Not permit arbitrary server-side execution
+Be accessible only through authorized challenge endpoints
+```
+
+Default maximum:
+
+```text
+100 MB per challenge file
+```
+
+This value should be configurable.
+
+---
+
+# 18. Hints
+
+Hints are included in V1.
+
+Hints are optional per challenge.
+
+Each hint may have:
+
+```text
+Content
+Point penalty
+Reveal status
+```
+
+Example:
+
+```text
+Hint 1: -10 points
+Hint 2: -25 points
+```
+
+---
+
+# 19. Scoring
+
+V1 uses static scoring.
+
+```text
+Final Score =
+Base Challenge Points
++ First Blood Bonus
+- Hint Penalty
+```
+
+Scoring is calculated server-side.
+
+Clients must never submit or determine their own score.
+
+Dynamic difficulty/scoring is deferred to a future version.
+
+---
+
+# 20. Flag Architecture
+
+V1 must support:
+
+```text
+Static flags
+```
+
+Flags must never be stored in plaintext where avoidable.
+
+Store:
+
+```text
+flag_hash
+```
+
+and verify submissions using secure comparison.
+
+The architecture must remain compatible with dynamic per-team flags.
+
+Dynamic flags are a planned extension, not a requirement for the first working platform.
+
+---
+
+# 21. Flag Submission
+
+Submission flow:
+
+```text
+Authenticate
+    ↓
+Validate competition state
+    ↓
+Validate challenge
+    ↓
+Validate team membership
+    ↓
+Rate limit
+    ↓
+Validate flag
+    ↓
+Transaction
+    ↓
+Create submission
+    ↓
+Create solve if correct
+    ↓
+Calculate score
+    ↓
+Check first blood
+    ↓
+Update leaderboard
+    ↓
+Create audit/integrity event where appropriate
+```
+
+Duplicate solves must be prevented by database constraints.
+
+---
+
+# 22. Leaderboard
+
+Primary ordering:
+
+```text
+Total score DESC
+```
+
+Tie-break:
+
+```text
+Earliest timestamp at which the team reached that score
+```
+
+The authoritative source is the `solves` table.
+
+A cached team score may be maintained for performance, but it must never become the only source of truth.
+
+---
+
+# 23. Docker Infrastructure
+
+Docker is isolated from the platform.
+
+Never expose the Docker socket directly to the participant-facing application.
+
+Use an Infrastructure Manager abstraction.
+
+```text
+CTF Backend
+     ↓
+Infrastructure Manager
+     ↓
+Docker
+```
+
+---
+
+# 24. Docker V1 Scope
+
+V1 should initially support:
+
+```text
+Shared challenge containers
+```
+
+where safe and appropriate.
+
+Do NOT make per-team containers mandatory for every challenge in the first Docker implementation.
+
+The first objective is to establish:
+
+```text
+Build
+Start
+Stop
+Reset
+Health check
+Resource limits
+Port allocation
+```
+
+for challenge containers.
+
+---
+
+# 25. Dynamic / Per-Team Containers
+
+Per-team containers are a planned extension.
+
+They should be introduced after the shared-container infrastructure is stable.
+
+Use them when a challenge requires:
+
+```text
+Isolation
+Unique state
+Dynamic flags
+Team-specific environment
+```
+
+The database/API design must not prevent this future extension.
+
+---
+
+# 26. Challenge Instance Isolation
+
+Challenge containers must not automatically access:
+
+```text
+CTF database
+Host filesystem
+Docker socket
+Admin API
+Other teams' containers
+```
+
+unless a specific challenge intentionally requires such access.
+
+Network separation must be enforced.
+
+---
+
+# 27. Session Storage
+
+V1:
+
+```text
+Native PHP sessions
+```
+
+Use secure cookies.
+
+Redis is optional and deferred.
+
+Do not add Redis merely because it may be useful later.
+
+---
+
+# 28. Rate Limiting
+
+Rate limiting is required in V1.
+
+Initial implementation may use a database-backed or application-level mechanism.
+
+The architecture should allow future migration to Redis.
+
+Rate limits should be independently considered for:
+
+```text
+User
+Team
+IP
+Endpoint
+```
+
+Do not rely solely on IP-based limits.
+
+---
+
+# 29. Competition Administration
+
+Admin functionality:
+
+```text
+Users
+Teams
+Challenges
+Submissions
+Leaderboard
+Containers
+Integrity
+Audit Logs
+Announcements
+Settings
+Competition State
+```
+
+Disqualification requires explicit administrator confirmation.
+
+Example:
+
+```text
+Type DISQUALIFY to confirm
+```
+
+---
+
+# 30. Security Requirements
+
+The platform must address:
+
+```text
+SQL Injection
+XSS
+CSRF
+IDOR
+Authentication bypass
+Authorization bypass
+Session attacks
+Mass assignment
+Rate-limit bypass
+Path traversal
+Unsafe file upload
+Command injection
+Docker isolation
+API abuse
+```
+
+Use:
+
+```text
+Prepared statements
+Output encoding
+CSRF protection
+Authorization middleware
+Secure sessions
+Input validation
+Security headers
+```
+
+---
+
+# 31. Development Strategy
+
+Development must occur in controlled phases.
+
+```text
+Phase 0  Foundation
+Phase 1  Database
+Phase 2  Authentication
+Phase 3  Teams
+Phase 4  Challenges
+Phase 5  Submissions
+Phase 6  Leaderboard
+Phase 7  Admin
+Phase 8  Docker
+Phase 9  Integrity
+Phase 10 Competition controls
+Phase 11 Security hardening
+Phase 12 Testing
+Phase 13 Deployment
+Phase 14 Documentation
+```
+
+No phase should automatically implement the next phase.
+
+---
+
+# 32. AI Coding Agent Rules
+
+Claude is the implementation agent.
+
+Claude must:
+
+```text
+Read the specification
+Understand the requested phase
+Implement only that phase
+Run tests
+Report results
+Stop
+```
+
+Claude must NOT:
+
+```text
+Expand scope
+Rewrite unrelated modules
+Introduce frameworks without approval
+Invent major requirements
+Remove security controls to make tests pass
+Silently resolve conflicting specifications
+```
+
+---
+
+# 33. Git Workflow
+
+Use:
+
+```text
+main
+develop
+```
+
+Optional feature branches:
+
+```text
+feature/auth
+feature/teams
+feature/challenges
+feature/leaderboard
+feature/docker
+feature/integrity
+```
+
+Create a commit after every stable development phase.
+
+---
+
+# 34. Testing Requirement
+
+Every phase must have acceptance tests.
+
+Minimum testing categories:
+
+```text
+Unit
+Integration
+API
+Authentication
+Authorization
+Security
+Docker
+Competition simulation
+```
+
+A phase is not considered complete merely because the application starts.
+
+---
+
+# 35. Local-First Development
+
+No VPS is required during initial development.
+
+Development environment:
+
+```text
+Developer PC
+    ↓
+PHP
+MySQL/MariaDB
+Docker
+Nginx or local development server
+```
+
+Production deployment is a separate phase.
+
+---
+
+# 36. Production Deployment
+
+Production architecture should eventually use:
+
+```text
+Internet
+   ↓
+HTTPS Reverse Proxy
+   ↓
+CTF Platform
+   ↓
+Database
+
+and separately:
+
+Challenge Infrastructure
+   ↓
+Docker
+   ↓
+Challenge Containers
+```
+
+The database must never be directly exposed to the public Internet.
+
+---
+
+# 37. Decision Summary
+
+The following decisions are final for V1:
+
+```text
+Backend:
+PHP + PDO
+
+Frontend:
+HTML/CSS/Vanilla JS
+
+Database:
+MySQL/MariaDB
+
+Architecture:
+Layered MVC/service/repository style
+
+Global roles:
+participant
+challenge_admin
+super_admin
+
+Team role:
+team_captain
+
+Competition states:
+UPCOMING
+REGISTRATION_OPEN
+LIVE
+PAUSED
+FINISHED
+ARCHIVED
+
+Team size:
+1–4 by default, configurable
+
+Categories:
+Web
+Pwn
+Crypto
+General
+
+Scoring:
+Static
+
+Flags:
+Static V1, dynamic-ready architecture
+
+Hints:
+Included V1
+
+Sessions:
+Native PHP sessions
+
+Redis:
+Deferred
+
+Docker:
+Shared containers first
+
+Per-team containers:
+Future extension
+
+Anti-cheat:
+Evidence-based human review
+
+Password reset:
+Deferred
+
+VPS:
+Deferred until production
+```
+
+---
+
+# 38. Final Instruction to Implementation Agent
+
+Treat this document as the authoritative resolution of conflicts between the original planning documents.
+
+Before writing code:
+
+1. Read all original specification documents.
+2. Read this document.
+3. Use this document to resolve conflicts.
+4. Do not silently override these decisions.
+5. If an implementation problem requires changing one of these decisions, stop and ask for approval.
+
+The goal is a maintainable, secure, production-capable private CTF platform for NCA Batch 4.
+
+# END OF CTF9

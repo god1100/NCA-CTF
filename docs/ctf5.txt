@@ -1,0 +1,2318 @@
+# NCA BATCH 4 PRIVATE CTF PLATFORM
+
+## API & Backend Architecture Specification
+
+**Document:** ctf5.txt
+**Version:** 1.0
+**Status:** Backend/API Specification
+**Project:** NCA Batch 4 Private CTF Platform
+**Purpose:** Define the backend architecture, API contracts, authentication, authorization, scoring, validation, rate limiting, error handling, and administrative operations.
+
+---
+
+# 1. Purpose
+
+This document defines how the frontend, backend, database, challenge infrastructure, and administrative systems communicate.
+
+The backend must provide secure APIs for:
+
+* Authentication
+* User management
+* Team management
+* Challenge browsing
+* Challenge details
+* Challenge files
+* Hint management
+* Flag submission
+* Scoring
+* Leaderboards
+* Announcements
+* Profiles
+* Docker challenge infrastructure
+* Integrity/anti-cheat monitoring
+* Administrative operations
+* Audit logging
+* Competition configuration
+
+The API is the authoritative interface between the frontend and backend.
+
+The frontend must never directly access the database.
+
+---
+
+# 2. Recommended Backend Architecture
+
+The backend should follow a layered architecture.
+
+```text
+Frontend
+   │
+   ▼
+API Routes / Controllers
+   │
+   ▼
+Middleware
+   │
+   ├── Authentication
+   ├── Authorization
+   ├── Rate Limiting
+   ├── Validation
+   └── Security
+   │
+   ▼
+Services
+   │
+   ├── Auth Service
+   ├── Challenge Service
+   ├── Submission Service
+   ├── Scoring Service
+   ├── Team Service
+   ├── Integrity Service
+   └── Admin Service
+   │
+   ▼
+Repositories / Database Layer
+   │
+   ▼
+MySQL / MariaDB
+```
+
+Challenge infrastructure is separate:
+
+```text
+Backend
+   │
+   ▼
+Challenge Infrastructure Manager
+   │
+   ▼
+Docker
+   │
+   ├── Web Challenge
+   ├── TCP/Pwn Challenge
+   └── Other Challenge Services
+```
+
+The participant-facing API must never directly expose Docker control.
+
+---
+
+# 3. API Base URL
+
+Production:
+
+```text
+/api/v1
+```
+
+Development:
+
+```text
+http://localhost:<backend-port>/api/v1
+```
+
+All API endpoints should use versioning.
+
+Example:
+
+```text
+GET /api/v1/challenges
+```
+
+Future breaking changes can use:
+
+```text
+/api/v2
+```
+
+---
+
+# 4. API Response Format
+
+Use a consistent JSON response structure.
+
+## Success
+
+```json
+{
+  "success": true,
+  "data": {},
+  "message": "Operation successful"
+}
+```
+
+## Error
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_REQUEST",
+    "message": "The request could not be processed"
+  }
+}
+```
+
+Do not expose:
+
+* SQL errors
+* Stack traces
+* Database credentials
+* Internal filesystem paths
+* Docker secrets
+* Flag hashes
+* Internal security information
+
+in normal production responses.
+
+---
+
+# 5. HTTP Status Codes
+
+Use standard status codes.
+
+```text
+200 OK
+201 Created
+204 No Content
+
+400 Bad Request
+401 Unauthorized
+403 Forbidden
+404 Not Found
+409 Conflict
+422 Unprocessable Entity
+429 Too Many Requests
+
+500 Internal Server Error
+503 Service Unavailable
+```
+
+---
+
+# 6. Authentication Architecture
+
+The platform must use secure server-side authentication.
+
+Recommended approach:
+
+```text
+Login
+  ↓
+Validate credentials
+  ↓
+Create authenticated session
+  ↓
+Secure session cookie
+  ↓
+Authenticated API requests
+```
+
+For a web-first platform, prefer secure HTTP-only cookies over storing authentication tokens in `localStorage`.
+
+Cookie requirements:
+
+```text
+HttpOnly
+Secure
+SameSite=Lax or Strict
+```
+
+Production must use HTTPS.
+
+---
+
+# 7. Authentication Endpoints
+
+Base:
+
+```text
+/api/v1/auth
+```
+
+Endpoints:
+
+```text
+POST /auth/register
+POST /auth/login
+POST /auth/logout
+GET  /auth/me
+POST /auth/change-password
+POST /auth/forgot-password
+POST /auth/reset-password
+```
+
+---
+
+# 8. Registration
+
+## Endpoint
+
+```text
+POST /api/v1/auth/register
+```
+
+## Request
+
+```json
+{
+  "username": "jerry",
+  "email": "jerry@example.com",
+  "full_name": "Jerry",
+  "password": "example-password",
+  "batch_code": "NCA-B4"
+}
+```
+
+## Server validation
+
+Check:
+
+```text
+Username uniqueness
+Email uniqueness
+Password strength
+Batch eligibility
+Registration status
+Input length
+Input format
+```
+
+The server must ignore client-supplied:
+
+```text
+role
+score
+team_id
+is_admin
+status
+```
+
+These must be determined server-side.
+
+---
+
+# 9. Login
+
+## Endpoint
+
+```text
+POST /api/v1/auth/login
+```
+
+## Request
+
+```json
+{
+  "identifier": "jerry",
+  "password": "example-password"
+}
+```
+
+## Success
+
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": 12,
+      "username": "jerry",
+      "role": "participant"
+    }
+  },
+  "message": "Login successful"
+}
+```
+
+Do not return:
+
+```text
+password
+password_hash
+session_secret
+```
+
+---
+
+# 10. Login Security
+
+Implement:
+
+* Rate limiting
+* Generic invalid-credential responses
+* Secure password hashing
+* Session regeneration after login
+* Session invalidation after logout
+* Account status checking
+* Optional account lockout/risk controls
+
+Do not reveal whether the username or password was incorrect.
+
+Prefer:
+
+```text
+Invalid username or password.
+```
+
+instead of:
+
+```text
+Username exists but password is wrong.
+```
+
+---
+
+# 11. Current User
+
+## Endpoint
+
+```text
+GET /api/v1/auth/me
+```
+
+Returns authenticated user information.
+
+Example:
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": 12,
+    "username": "jerry",
+    "full_name": "Jerry",
+    "role": "participant",
+    "team": {
+      "id": 4,
+      "name": "Cyber Wolves"
+    }
+  }
+}
+```
+
+---
+
+# 12. Logout
+
+## Endpoint
+
+```text
+POST /api/v1/auth/logout
+```
+
+Server must invalidate the session.
+
+Response:
+
+```json
+{
+  "success": true,
+  "message": "Logged out successfully"
+}
+```
+
+---
+
+# 13. Role-Based Access Control
+
+Roles:
+
+```text
+participant
+team_captain
+challenge_admin
+super_admin
+```
+
+Permissions must be checked on the backend.
+
+Example:
+
+```text
+Participant
+    ↓
+GET challenges
+
+Challenge Admin
+    ↓
+CREATE challenge
+
+Super Admin
+    ↓
+DISQUALIFY team
+```
+
+Frontend hiding a button is not authorization.
+
+---
+
+# 14. Permission Middleware
+
+Conceptual middleware:
+
+```text
+requireAuth()
+
+requireRole("challenge_admin")
+
+requireRole("super_admin")
+```
+
+For sensitive actions, use explicit permission checks.
+
+Example:
+
+```text
+requirePermission("team.disqualify")
+```
+
+---
+
+# 15. User API
+
+Base:
+
+```text
+/api/v1/users
+```
+
+Participant:
+
+```text
+GET /users/me
+PATCH /users/me
+PATCH /users/me/password
+```
+
+Admin:
+
+```text
+GET /users
+GET /users/:id
+PATCH /users/:id
+POST /users/:id/suspend
+POST /users/:id/activate
+```
+
+Administrative user modifications must be audited.
+
+---
+
+# 16. Team API
+
+Base:
+
+```text
+/api/v1/teams
+```
+
+Endpoints:
+
+```text
+GET  /teams
+POST /teams
+GET  /teams/:id
+PATCH /teams/:id
+POST /teams/:id/join
+POST /teams/:id/leave
+POST /teams/:id/invite
+GET  /teams/:id/members
+```
+
+Admin:
+
+```text
+POST /teams/:id/freeze
+POST /teams/:id/unfreeze
+POST /teams/:id/disqualify
+```
+
+---
+
+# 17. Team Creation
+
+## Endpoint
+
+```text
+POST /api/v1/teams
+```
+
+Request:
+
+```json
+{
+  "name": "Cyber Wolves"
+}
+```
+
+Backend checks:
+
+```text
+Competition allows team creation
+Team name uniqueness
+User is eligible
+User isn't already in another team
+Team size configuration
+```
+
+The creator becomes captain.
+
+---
+
+# 18. Team Invitation
+
+## Endpoint
+
+```text
+POST /api/v1/teams/:id/invite
+```
+
+Request:
+
+```json
+{
+  "username": "alice"
+}
+```
+
+Only authorized team members/captains should be able to invite users according to competition rules.
+
+The backend creates an invitation record.
+
+---
+
+# 19. Challenge API
+
+Base:
+
+```text
+/api/v1/challenges
+```
+
+Participant endpoints:
+
+```text
+GET /challenges
+GET /challenges/:slug
+GET /challenges/:slug/files
+GET /challenges/:slug/hints
+POST /challenges/:slug/hints/:hintId/reveal
+POST /challenges/:slug/submit
+```
+
+Admin endpoints:
+
+```text
+POST /challenges
+GET /challenges/:id
+PATCH /challenges/:id
+DELETE /challenges/:id
+POST /challenges/:id/publish
+POST /challenges/:id/pause
+POST /challenges/:id/archive
+```
+
+---
+
+# 20. Challenge List
+
+## Endpoint
+
+```text
+GET /api/v1/challenges
+```
+
+Supported query parameters:
+
+```text
+category
+difficulty
+status
+search
+sort
+page
+limit
+```
+
+Example:
+
+```text
+GET /api/v1/challenges?category=web&difficulty=medium&page=1
+```
+
+Participants should only receive:
+
+```text
+published
+```
+
+challenges unless explicitly allowed otherwise.
+
+---
+
+# 21. Challenge Response
+
+Example:
+
+```json
+{
+  "id": 10,
+  "title": "JWT Misconfiguration",
+  "slug": "jwt-misconfiguration",
+  "category": "Web",
+  "difficulty": "medium",
+  "points": 200,
+  "description": "Investigate the authentication mechanism.",
+  "challenge_type": "web",
+  "deployment_type": "http",
+  "target": {
+    "url": "https://example.invalid"
+  },
+  "status": "published",
+  "solved": false
+}
+```
+
+Never return:
+
+```text
+flag
+flag_hash
+docker environment secrets
+internal container ID
+private infrastructure information
+```
+
+---
+
+# 22. Challenge Detail
+
+## Endpoint
+
+```text
+GET /api/v1/challenges/:slug
+```
+
+The backend determines whether the current user/team has solved the challenge.
+
+The frontend must not determine solve status independently.
+
+---
+
+# 23. Challenge Files
+
+## Endpoint
+
+```text
+GET /api/v1/challenges/:slug/files
+```
+
+Return metadata:
+
+```json
+{
+  "files": [
+    {
+      "id": 5,
+      "name": "challenge.zip",
+      "size": 24576,
+      "sha256": "..."
+    }
+  ]
+}
+```
+
+The actual file should be downloaded through an authorized endpoint.
+
+---
+
+# 24. File Download
+
+Example:
+
+```text
+GET /api/v1/challenges/:slug/files/:fileId
+```
+
+Backend must verify:
+
+```text
+User authenticated
+Challenge published
+File belongs to challenge
+File is available
+User has permission
+```
+
+Do not allow arbitrary filesystem paths from user input.
+
+Never implement:
+
+```text
+GET /download?path=/var/www/...
+```
+
+---
+
+# 25. Hint API
+
+## List hints
+
+```text
+GET /api/v1/challenges/:slug/hints
+```
+
+Return:
+
+```json
+{
+  "id": 1,
+  "cost": 25,
+  "revealed": false
+}
+```
+
+Do not return unrevealed hint text.
+
+---
+
+# 26. Reveal Hint
+
+## Endpoint
+
+```text
+POST /api/v1/challenges/:slug/hints/:hintId/reveal
+```
+
+Server checks:
+
+```text
+Challenge exists
+Hint belongs to challenge
+User has team
+Team hasn't already revealed hint
+Competition is live
+Team has sufficient score if required
+```
+
+Then records hint usage.
+
+The database specification may later add a dedicated `hint_usage` table if the hint system is enabled.
+
+---
+
+# 27. Flag Submission API
+
+This is the most security-sensitive participant endpoint.
+
+## Endpoint
+
+```text
+POST /api/v1/challenges/:slug/submit
+```
+
+Request:
+
+```json
+{
+  "flag": "NCA{example_flag}"
+}
+```
+
+Do not accept:
+
+```text
+score
+team_id
+user_id
+points
+```
+
+from the client.
+
+---
+
+# 28. Flag Submission Processing
+
+The backend must:
+
+```text
+1. Authenticate
+2. Determine current user
+3. Determine current team
+4. Check competition status
+5. Check challenge status
+6. Rate-limit submission
+7. Normalize flag
+8. Hash submitted flag
+9. Compare against active flag
+10. Record submission
+11. Check whether team already solved
+12. Determine First Blood
+13. Calculate points
+14. Create solve
+15. Update cached score
+16. Create audit event
+17. Trigger integrity analysis
+18. Commit transaction
+```
+
+---
+
+# 29. Correct Flag Response
+
+Example:
+
+```json
+{
+  "success": true,
+  "data": {
+    "correct": true,
+    "points_awarded": 200,
+    "first_blood": false,
+    "team_score": 850
+  },
+  "message": "Correct flag!"
+}
+```
+
+Do not return the correct flag.
+
+---
+
+# 30. First Blood Response
+
+If First Blood:
+
+```json
+{
+  "success": true,
+  "data": {
+    "correct": true,
+    "points_awarded": 225,
+    "first_blood": true,
+    "first_blood_bonus": 25
+  },
+  "message": "Correct flag — First Blood!"
+}
+```
+
+---
+
+# 31. Incorrect Flag Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "correct": false
+  },
+  "message": "Incorrect flag."
+}
+```
+
+Do not reveal which portion was incorrect.
+
+---
+
+# 32. Already Solved
+
+If the team has already solved the challenge:
+
+```json
+{
+  "success": true,
+  "data": {
+    "correct": true,
+    "already_solved": true
+  },
+  "message": "Your team has already solved this challenge."
+}
+```
+
+The system must not award points again.
+
+---
+
+# 33. Submission Rate Limiting
+
+Flag submission must have strict rate limiting.
+
+Example initial policy:
+
+```text
+Maximum:
+10 submissions / minute / user
+
+Maximum:
+20 submissions / minute / team
+```
+
+These values must be configurable.
+
+A `429 Too Many Requests` response should be returned when exceeded.
+
+---
+
+# 34. Rate Limiting Architecture
+
+Rate limits should consider:
+
+```text
+User
+Team
+IP
+Endpoint
+```
+
+Do not rely only on IP because participants may share networks.
+
+Do not rely only on username because accounts can be abused.
+
+---
+
+# 35. Leaderboard API
+
+## Endpoint
+
+```text
+GET /api/v1/leaderboard
+```
+
+Query parameters:
+
+```text
+page
+limit
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "entries": [
+      {
+        "rank": 1,
+        "team": "Cyber Wolves",
+        "score": 1250,
+        "solved": 8
+      }
+    ]
+  }
+}
+```
+
+Do not expose private team information.
+
+---
+
+# 36. Leaderboard Ranking
+
+Primary ordering:
+
+```text
+score DESC
+```
+
+Tie-breaker:
+
+```text
+earliest time reaching final score
+```
+
+The backend must calculate rankings.
+
+The browser must never calculate authoritative ranks.
+
+---
+
+# 37. Announcements API
+
+Participant:
+
+```text
+GET /api/v1/announcements
+GET /api/v1/announcements/:id
+```
+
+Admin:
+
+```text
+POST /api/v1/announcements
+PATCH /api/v1/announcements/:id
+POST /api/v1/announcements/:id/publish
+POST /api/v1/announcements/:id/archive
+```
+
+---
+
+# 38. Profile API
+
+```text
+GET /api/v1/profile
+PATCH /api/v1/profile
+```
+
+Profile response:
+
+```json
+{
+  "username": "jerry",
+  "full_name": "Jerry",
+  "team": "Cyber Wolves",
+  "statistics": {
+    "score": 850,
+    "solved": 7,
+    "first_bloods": 1
+  }
+}
+```
+
+---
+
+# 39. Competition API
+
+## Endpoint
+
+```text
+GET /api/v1/competition
+```
+
+Return:
+
+```json
+{
+  "name": "NCA Batch 4 CTF",
+  "status": "live",
+  "start_time": "...",
+  "end_time": "..."
+}
+```
+
+This allows the frontend to display the competition state dynamically.
+
+---
+
+# 40. Competition State Rules
+
+## Upcoming
+
+```text
+Registration:
+Optional
+
+Submissions:
+Disabled
+```
+
+## Registration Open
+
+```text
+Registration:
+Enabled
+
+Submissions:
+Disabled
+```
+
+## Live
+
+```text
+Registration:
+According to configuration
+
+Submissions:
+Enabled
+```
+
+## Paused
+
+```text
+Submissions:
+Disabled
+```
+
+## Finished
+
+```text
+Submissions:
+Disabled
+
+Leaderboard:
+Final
+```
+
+---
+
+# 41. Admin API
+
+Base:
+
+```text
+/api/v1/admin
+```
+
+Admin dashboard:
+
+```text
+GET /admin/dashboard
+```
+
+Users:
+
+```text
+GET /admin/users
+GET /admin/users/:id
+POST /admin/users/:id/suspend
+POST /admin/users/:id/activate
+```
+
+Teams:
+
+```text
+GET /admin/teams
+GET /admin/teams/:id
+POST /admin/teams/:id/freeze
+POST /admin/teams/:id/unfreeze
+POST /admin/teams/:id/disqualify
+```
+
+Challenges:
+
+```text
+GET /admin/challenges
+POST /admin/challenges
+PATCH /admin/challenges/:id
+POST /admin/challenges/:id/publish
+POST /admin/challenges/:id/pause
+POST /admin/challenges/:id/archive
+```
+
+---
+
+# 42. Admin Submission Monitoring
+
+## Endpoint
+
+```text
+GET /api/v1/admin/submissions
+```
+
+Filters:
+
+```text
+team
+user
+challenge
+correct
+date_from
+date_to
+ip
+```
+
+Sensitive information should only be returned to authorized administrators.
+
+---
+
+# 43. Admin Challenge Management
+
+Create:
+
+```text
+POST /api/v1/admin/challenges
+```
+
+Example:
+
+```json
+{
+  "title": "JWT Lab",
+  "category_id": 1,
+  "difficulty": "medium",
+  "points": 200,
+  "description": "Investigate JWT validation.",
+  "challenge_type": "web",
+  "deployment_type": "http"
+}
+```
+
+The backend validates all fields.
+
+---
+
+# 44. Challenge Publishing
+
+## Endpoint
+
+```text
+POST /api/v1/admin/challenges/:id/publish
+```
+
+Before publishing, validate:
+
+```text
+Title exists
+Description exists
+Category exists
+Points valid
+Flag exists
+Challenge configuration valid
+Infrastructure available if required
+```
+
+Do not publish incomplete challenges.
+
+---
+
+# 45. Docker API Boundary
+
+Participants must never have access to:
+
+```text
+Docker socket
+Docker API
+container IDs
+container environment variables
+container logs
+container filesystem
+```
+
+Only backend/admin infrastructure services can interact with Docker.
+
+---
+
+# 46. Docker Administration API
+
+Example internal/admin endpoints:
+
+```text
+GET  /api/v1/admin/containers
+GET  /api/v1/admin/containers/:id
+POST /api/v1/admin/containers/:id/start
+POST /api/v1/admin/containers/:id/stop
+POST /api/v1/admin/containers/:id/restart
+GET  /api/v1/admin/containers/:id/logs
+```
+
+These require elevated privileges.
+
+---
+
+# 47. Challenge Target Architecture
+
+For a Web challenge:
+
+```text
+Participant
+    │
+    ▼
+Challenge URL
+    │
+    ▼
+Docker Container
+```
+
+The CTF backend stores metadata about the target.
+
+The challenge application itself should be isolated from the main CTF application.
+
+---
+
+# 48. Integrity API
+
+Base:
+
+```text
+/api/v1/admin/integrity
+```
+
+Endpoints:
+
+```text
+GET /admin/integrity/events
+GET /admin/integrity/events/:id
+POST /admin/integrity/events/:id/investigate
+POST /admin/integrity/events/:id/dismiss
+POST /admin/integrity/events/:id/resolve
+```
+
+---
+
+# 49. Integrity Event Creation
+
+The integrity engine may create events internally.
+
+Example:
+
+```json
+{
+  "event_type": "possible_flag_sharing",
+  "severity": "high",
+  "risk_score": 82,
+  "team_id": 4,
+  "related_team_id": 7,
+  "challenge_id": 12
+}
+```
+
+The system must not automatically disqualify teams based solely on a heuristic.
+
+---
+
+# 50. Integrity Investigation
+
+Admin endpoint:
+
+```text
+GET /api/v1/admin/integrity/events/:id
+```
+
+Response may contain:
+
+```text
+Event
+Risk Score
+Severity
+Challenge
+Team
+Related Team
+Timeline
+Evidence
+Related Submissions
+```
+
+Only authorized administrators may access this information.
+
+---
+
+# 51. Disqualification API
+
+## Endpoint
+
+```text
+POST /api/v1/admin/teams/:id/disqualify
+```
+
+Request:
+
+```json
+{
+  "reason": "Confirmed unauthorized flag sharing",
+  "integrity_event_id": 102
+}
+```
+
+Server must:
+
+```text
+1. Verify admin permission
+2. Verify team exists
+3. Record disqualification
+4. Update team status
+5. Disable submissions
+6. Create audit log
+7. Preserve historical solves
+8. Update leaderboard behavior
+```
+
+---
+
+# 52. Disqualification Safety
+
+This endpoint must require:
+
+```text
+Super Admin
+```
+
+or an explicitly authorized disciplinary permission.
+
+It must never be callable by participants.
+
+The UI should require confirmation, but the backend must independently enforce authorization.
+
+---
+
+# 53. Audit API
+
+Admin:
+
+```text
+GET /api/v1/admin/audit-logs
+GET /api/v1/admin/audit-logs/:id
+```
+
+Filters:
+
+```text
+user
+action
+entity
+date
+IP
+```
+
+Audit records must not be editable through normal application APIs.
+
+---
+
+# 54. System Settings API
+
+Admin:
+
+```text
+GET /api/v1/admin/settings
+PATCH /api/v1/admin/settings
+```
+
+Example:
+
+```json
+{
+  "maximum_team_size": 4,
+  "first_blood_bonus": 25,
+  "hint_system_enabled": true
+}
+```
+
+Only authorized administrators may modify settings.
+
+Settings changes must be audited.
+
+---
+
+# 55. CSRF Protection
+
+If authentication uses cookie-based sessions, state-changing requests must have CSRF protection.
+
+Protect:
+
+```text
+POST
+PUT
+PATCH
+DELETE
+```
+
+especially:
+
+```text
+POST /submit
+POST /teams
+POST /admin/...
+```
+
+GET requests must not perform state-changing operations.
+
+---
+
+# 56. Input Validation
+
+All API inputs must be validated server-side.
+
+Validate:
+
+```text
+Type
+Length
+Format
+Range
+Allowed values
+Relationships
+Authorization
+```
+
+Examples:
+
+```text
+points > 0
+
+difficulty ∈
+easy, medium, hard, insane
+```
+
+Never rely only on HTML input validation.
+
+---
+
+# 57. SQL Injection Protection
+
+All database queries must use prepared statements / parameterized queries.
+
+Never construct:
+
+```text
+SELECT * FROM users WHERE username = '$username'
+```
+
+from raw user input.
+
+Use parameterized queries through the application's database abstraction layer.
+
+---
+
+# 58. Mass Assignment Protection
+
+Do not automatically map request JSON to database records.
+
+Bad:
+
+```text
+User::update(request.body)
+```
+
+A participant could submit:
+
+```json
+{
+  "role": "super_admin",
+  "score": 999999
+}
+```
+
+Instead explicitly select allowed fields.
+
+---
+
+# 59. Authorization Rules
+
+Examples:
+
+```text
+Participant:
+Cannot access /admin
+
+Participant:
+Cannot modify another user
+
+Participant:
+Cannot modify team score
+
+Participant:
+Cannot publish challenges
+
+Team Captain:
+Can manage permitted team operations
+
+Challenge Admin:
+Can manage challenges
+
+Super Admin:
+Can manage competition and disciplinary operations
+```
+
+---
+
+# 60. Error Handling
+
+Never expose internal exceptions.
+
+Bad:
+
+```text
+SQLSTATE[23000]: Integrity constraint violation...
+```
+
+Production response:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "CONFLICT",
+    "message": "The requested operation could not be completed."
+  }
+}
+```
+
+Detailed errors may be logged internally.
+
+---
+
+# 61. Logging
+
+Backend logs should record:
+
+```text
+Authentication events
+Authorization failures
+Application errors
+Challenge service errors
+Docker service failures
+Integrity events
+Administrative actions
+```
+
+Do not log:
+
+```text
+Passwords
+Session secrets
+Authentication tokens
+Plaintext flags
+Sensitive challenge secrets
+```
+
+---
+
+# 62. Security Headers
+
+Production responses should include appropriate security headers such as:
+
+```text
+Content-Security-Policy
+X-Content-Type-Options
+Referrer-Policy
+Permissions-Policy
+Strict-Transport-Security
+```
+
+The exact CSP should be adapted to the actual frontend architecture.
+
+---
+
+# 63. CORS
+
+If frontend and backend use different origins, configure CORS explicitly.
+
+Do not use:
+
+```text
+Access-Control-Allow-Origin: *
+```
+
+with authenticated private APIs.
+
+Only trusted frontend origins should be allowed.
+
+---
+
+# 64. API Rate Limiting
+
+At minimum implement separate limits for:
+
+```text
+Login
+Registration
+Password reset
+Flag submission
+Hint reveal
+Admin endpoints
+General API requests
+```
+
+Example initial configuration:
+
+```text
+Login:
+5 attempts / minute / IP
+
+Registration:
+5 / hour / IP
+
+Flag submission:
+10 / minute / user
+20 / minute / team
+
+General API:
+120 / minute / user
+```
+
+These values are configurable and should be tuned after testing.
+
+---
+
+# 65. Pagination
+
+Large endpoints must use pagination.
+
+Example:
+
+```text
+GET /api/v1/admin/submissions?page=1&limit=50
+```
+
+Do not return thousands of database records by default.
+
+Maximum page size should be enforced.
+
+Example:
+
+```text
+limit <= 100
+```
+
+---
+
+# 66. Search
+
+Search endpoints must use controlled query parameters.
+
+Example:
+
+```text
+GET /api/v1/challenges?search=jwt
+```
+
+The backend must safely parameterize search queries.
+
+---
+
+# 67. API Security Boundaries
+
+Participant:
+
+```text
+Public Challenge Information
+        ↓
+Participant API
+        ↓
+Database
+```
+
+Admin:
+
+```text
+Admin UI
+        ↓
+Admin API
+        ↓
+Authorization
+        ↓
+Database / Infrastructure
+```
+
+Docker:
+
+```text
+Admin/Infrastructure Service
+        ↓
+Docker API
+```
+
+Participants never cross directly into the Docker boundary.
+
+---
+
+# 68. Backend Service Structure
+
+Recommended project structure:
+
+```text
+backend/
+│
+├── config/
+│
+├── routes/
+│
+├── controllers/
+│
+├── middleware/
+│
+├── services/
+│
+├── repositories/
+│
+├── validators/
+│
+├── models/
+│
+├── database/
+│   └── migrations/
+│
+├── security/
+│
+├── infrastructure/
+│   └── docker/
+│
+├── integrity/
+│
+├── utils/
+│
+└── tests/
+```
+
+Exact framework may be chosen during implementation.
+
+The architecture must remain layered even if the framework differs.
+
+---
+
+# 69. Service Responsibilities
+
+## Auth Service
+
+Handles:
+
+```text
+Registration
+Login
+Logout
+Password changes
+Password reset
+Session management
+```
+
+## Team Service
+
+Handles:
+
+```text
+Team creation
+Membership
+Invitations
+Team status
+```
+
+## Challenge Service
+
+Handles:
+
+```text
+Challenge retrieval
+Challenge management
+Files
+Hints
+Publishing
+```
+
+## Submission Service
+
+Handles:
+
+```text
+Flag validation
+Submission recording
+Duplicate detection
+Rate limiting
+```
+
+## Scoring Service
+
+Handles:
+
+```text
+Points
+First Blood
+Hint penalties
+Leaderboard calculations
+```
+
+## Integrity Service
+
+Handles:
+
+```text
+Suspicious behavior analysis
+Risk scoring
+Evidence
+Integrity events
+```
+
+## Infrastructure Service
+
+Handles:
+
+```text
+Docker
+Container lifecycle
+Challenge health
+Logs
+```
+
+---
+
+# 70. Critical Separation of Responsibilities
+
+The following must remain separate:
+
+```text
+Authentication
+≠
+Authorization
+
+Challenge
+≠
+Challenge Container
+
+Submission
+≠
+Solve
+
+Score Cache
+≠
+Score History
+
+Integrity Detection
+≠
+Disqualification
+```
+
+This separation prevents security and architecture problems.
+
+---
+
+# 71. Flag Submission and Integrity Flow
+
+Complete architecture:
+
+```text
+Participant
+     │
+     │ POST /submit
+     ▼
+API
+     │
+     ▼
+Authentication
+     │
+     ▼
+Authorization
+     │
+     ▼
+Rate Limit
+     │
+     ▼
+Submission Service
+     │
+     ├──────────────► SUBMISSIONS
+     │
+     ▼
+Flag Validation
+     │
+     ├── Incorrect
+     │      │
+     │      ▼
+     │    Record
+     │
+     └── Correct
+            │
+            ▼
+       Solve Service
+            │
+            ▼
+       Scoring Service
+            │
+       ┌────┴────┐
+       ▼         ▼
+   First Blood  Score
+       │         │
+       └────┬────┘
+            ▼
+       Integrity Event
+            │
+            ▼
+          Audit
+```
+
+---
+
+# 72. Integrity Detection Principle
+
+The system should operate on **signals**, not assumptions.
+
+Example:
+
+```text
+Team A solves at 14:30
+Team B solves at 14:30:03
+```
+
+This alone does not prove cheating.
+
+Possible evidence:
+
+```text
+Timing correlation
+Repeated suspicious patterns
+Submission behavior
+Shared infrastructure indicators
+Flag similarity where appropriate
+Account relationships
+```
+
+The system generates:
+
+```text
+Risk Score
+```
+
+rather than automatically issuing punishment.
+
+---
+
+# 73. Automated Actions
+
+The integrity engine may automatically:
+
+```text
+Create alert
+Increase risk score
+Notify administrators
+Temporarily flag an event
+```
+
+It should NOT automatically:
+
+```text
+Permanently ban a team
+Delete solves
+Delete accounts
+Change scores
+```
+
+without explicit competition policy and administrative authorization.
+
+---
+
+# 74. API Testing
+
+Every API must have tests for:
+
+```text
+Authentication
+Authorization
+Validation
+Happy path
+Invalid input
+Unauthorized access
+Rate limiting
+Race conditions
+Duplicate operations
+Error handling
+```
+
+Critical endpoints requiring additional tests:
+
+```text
+POST /auth/login
+POST /teams
+POST /challenges/:slug/submit
+POST /admin/teams/:id/disqualify
+POST /admin/challenges
+```
+
+---
+
+# 75. API Documentation
+
+The implementation should generate API documentation using OpenAPI/Swagger or an equivalent format.
+
+Documentation should describe:
+
+```text
+Endpoint
+Method
+Authentication
+Required role
+Parameters
+Request body
+Response
+Errors
+Rate limits
+```
+
+Example:
+
+```text
+POST /api/v1/challenges/{slug}/submit
+
+Authentication:
+Required
+
+Role:
+Participant
+
+Rate limit:
+10/minute/user
+
+Request:
+{
+  "flag": "string"
+}
+```
+
+---
+
+# 76. API Versioning Policy
+
+Do not introduce breaking API changes into `/v1`.
+
+For breaking changes:
+
+```text
+/v2
+```
+
+Non-breaking changes may be added to V1.
+
+---
+
+# 77. Backend Environment Variables
+
+Example:
+
+```text
+APP_ENV
+APP_URL
+APP_SECRET
+
+DB_HOST
+DB_PORT
+DB_DATABASE
+DB_USERNAME
+DB_PASSWORD
+
+SESSION_SECRET
+
+DOCKER_HOST
+
+RATE_LIMIT_ENABLED
+
+LOG_LEVEL
+```
+
+Secrets must come from environment configuration or a secure secret manager.
+
+Never commit production secrets to Git.
+
+---
+
+# 78. Development vs Production
+
+Development:
+
+```text
+localhost
+debug enabled
+test database
+local Docker
+development logging
+```
+
+Production:
+
+```text
+HTTPS
+debug disabled
+production database
+restricted Docker access
+secure cookies
+strict CORS
+security headers
+centralized logging
+backups
+```
+
+---
+
+# 79. API Acceptance Criteria
+
+The backend is considered ready when:
+
+```text
+[ ] Authentication works
+[ ] Session handling is secure
+[ ] RBAC works server-side
+[ ] User API works
+[ ] Team API works
+[ ] Challenge API works
+[ ] File downloads are authorized
+[ ] Hint system works
+[ ] Flag submission is transactional
+[ ] Duplicate solves are prevented
+[ ] First Blood is race-condition safe
+[ ] Scores are server-authoritative
+[ ] Leaderboard is server-generated
+[ ] Admin APIs are protected
+[ ] Docker APIs are isolated
+[ ] Integrity events are supported
+[ ] Disqualification is audited
+[ ] Rate limiting works
+[ ] CSRF protection works where required
+[ ] Input validation works
+[ ] SQL injection protections are implemented
+[ ] Mass assignment is prevented
+[ ] Security headers are configured
+[ ] CORS is restricted
+[ ] API errors are sanitized
+[ ] API documentation exists
+[ ] Automated tests exist
+```
+
+---
+
+# 80. Implementation Rule for AI Coding Agents
+
+MonkeyCode must treat this document and the previous architecture documents as specifications.
+
+It must not:
+
+* Invent alternate authentication architecture without approval
+* Change scoring logic without approval
+* Expose challenge flags
+* Trust client-supplied scores
+* Trust client-supplied team IDs
+* Give participants Docker access
+* Bypass RBAC
+* Remove audit logging
+* Automatically disqualify teams
+* Hardcode competition settings
+* Store plaintext passwords
+* Store production secrets in source code
+* Modify unrelated components while implementing an API feature
+
+When a requirement is ambiguous, the implementation should prefer the safest architecture and identify the ambiguity before making a major architectural change.
+
+---
+
+# 81. Final Backend Architecture
+
+The final request flow should be:
+
+```text
+                 ┌───────────────────┐
+                 │   PARTICIPANT UI  │
+                 └─────────┬─────────┘
+                           │
+                           ▼
+                 ┌───────────────────┐
+                 │     REST API      │
+                 └─────────┬─────────┘
+                           │
+             ┌─────────────┼─────────────┐
+             │             │             │
+             ▼             ▼             ▼
+        AUTH/RBAC      VALIDATION    RATE LIMIT
+             │             │             │
+             └─────────────┼─────────────┘
+                           │
+                           ▼
+                    SERVICE LAYER
+                           │
+        ┌──────────────────┼─────────────────┐
+        │                  │                 │
+        ▼                  ▼                 ▼
+   APPLICATION DB      SCORING          INTEGRITY
+        │                  │                 │
+        └──────────────────┼─────────────────┘
+                           │
+                           ▼
+                      AUDIT LOG
+                           
+                           
+        ADMIN UI
+           │
+           ▼
+       ADMIN API
+           │
+     ┌─────┴─────┐
+     ▼           ▼
+ DATABASE      DOCKER
+               INFRASTRUCTURE
+```
+
+The API/backend specification is now the authoritative contract for the NCA Batch 4 Private CTF Platform V1.
