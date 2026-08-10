@@ -1,0 +1,35 @@
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies
+/vendor/
+composer.lock
+node_modules/
+
+# Storage (runtime, never committed)
+/storage/logs/*
+!/storage/logs/.gitkeep
+/storage/uploads/*
+!/storage/uploads/.gitkeep
+/storage/framework/*
+!/storage/framework/.gitkeep
+
+# Database files (local sqlite/dumps if ever used)
+*.sqlite
+*.sql.bak
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Test/coverage output
+/coverage/
+.phpunit.result.cache
+
+# Docker local overrides
+docker-compose.override.yml

@@ -1,0 +1,1894 @@
+# NCA BATCH 4 PRIVATE CTF PLATFORM
+
+## Implementation Roadmap & MonkeyCode Development Workflow
+
+**Document:** ctf8.txt
+**Version:** 1.0
+**Status:** Development Planning
+**Project:** NCA Batch 4 Private CTF Platform
+
+---
+
+# 1. Purpose
+
+This document defines how the NCA Batch 4 CTF platform will actually be developed.
+
+The previous documents define:
+
+```text
+ctf.txt   → Project Requirements
+ctf2.txt  → System Architecture
+ctf3.txt  → UI/UX
+ctf4.txt  → Database
+ctf5.txt  → Backend/API
+ctf6.txt  → Docker Challenge Infrastructure
+ctf7.txt  → Anti-Cheat & Integrity
+```
+
+This document defines:
+
+```text
+How to build everything
+What to build first
+What to build next
+How to test each phase
+How MonkeyCode should be used
+How to avoid breaking existing functionality
+How to prepare the final deployment
+```
+
+---
+
+# 2. Development Philosophy
+
+The platform must be developed incrementally.
+
+Do NOT attempt to build:
+
+```text
+Frontend
+Backend
+Database
+Authentication
+Challenges
+Docker
+Leaderboard
+Admin
+Anti-Cheat
+Deployment
+```
+
+all at once.
+
+Instead:
+
+```text
+Foundation
+    ↓
+Database
+    ↓
+Authentication
+    ↓
+Teams
+    ↓
+Challenges
+    ↓
+Submissions
+    ↓
+Leaderboard
+    ↓
+Admin
+    ↓
+Docker Challenges
+    ↓
+Integrity System
+    ↓
+Testing
+    ↓
+Deployment
+```
+
+Each phase must work before moving to the next phase.
+
+---
+
+# 3. Recommended Technology Stack
+
+Use a practical stack that is easy to maintain.
+
+## Frontend
+
+```text
+HTML5
+CSS3
+JavaScript
+```
+
+Preferred:
+
+```text
+Vanilla JS
+```
+
+A modern frontend framework is not required for V1.
+
+---
+
+# 4. Backend
+
+Recommended:
+
+```text
+PHP 8+
+PDO
+REST-style API
+MySQL/MariaDB
+```
+
+Reason:
+
+The developer is already familiar with:
+
+```text
+PHP
+MySQL
+HTML
+CSS
+JavaScript
+XAMPP
+```
+
+The platform should not introduce unnecessary complexity.
+
+---
+
+# 5. Database
+
+Use:
+
+```text
+MySQL / MariaDB
+```
+
+Primary entities:
+
+```text
+users
+teams
+team_members
+challenges
+categories
+submissions
+solves
+flags
+sessions
+notifications
+announcements
+integrity_events
+integrity_alerts
+disciplinary_actions
+audit_logs
+```
+
+---
+
+# 6. Repository Structure
+
+Recommended initial structure:
+
+```text
+nca-batch4-ctf/
+│
+├── frontend/
+│   ├── index.html
+│   ├── login.html
+│   ├── register.html
+│   ├── dashboard.html
+│   ├── challenges.html
+│   ├── challenge.html
+│   ├── leaderboard.html
+│   ├── profile.html
+│   └── assets/
+│
+├── backend/
+│   ├── config/
+│   ├── api/
+│   ├── middleware/
+│   ├── modules/
+│   │   ├── auth/
+│   │   ├── users/
+│   │   ├── teams/
+│   │   ├── challenges/
+│   │   ├── submissions/
+│   │   ├── leaderboard/
+│   │   ├── notifications/
+│   │   └── integrity/
+│   │
+│   └── database/
+│
+├── admin/
+│   ├── dashboard.html
+│   ├── users.html
+│   ├── teams.html
+│   ├── challenges.html
+│   ├── submissions.html
+│   ├── leaderboard.html
+│   └── integrity.html
+│
+├── challenges/
+│   ├── web/
+│   ├── crypto/
+│   ├── pwn/
+│   └── general/
+│
+├── docker/
+│
+├── docs/
+│
+├── tests/
+│
+├── .env.example
+├── .gitignore
+├── README.md
+└── docker-compose.yml
+```
+
+---
+
+# 7. Development Phases
+
+The complete project should be divided into the following phases.
+
+```text
+PHASE 0   Project Initialization
+PHASE 1   Database
+PHASE 2   Authentication
+PHASE 3   Users & Teams
+PHASE 4   Challenge System
+PHASE 5   Flag Submission
+PHASE 6   Leaderboard
+PHASE 7   Admin Panel
+PHASE 8   Docker Challenge Infrastructure
+PHASE 9   Anti-Cheat / Integrity
+PHASE 10  Notifications & Competition Controls
+PHASE 11  Security Hardening
+PHASE 12  Testing
+PHASE 13  Deployment
+PHASE 14  Final Documentation
+```
+
+---
+
+# 8. PHASE 0 — Project Initialization
+
+Goal:
+
+Create the project skeleton.
+
+Tasks:
+
+```text
+Create Git repository
+Create directory structure
+Create environment configuration
+Create database connection
+Create API base
+Create frontend base
+Create admin base
+Create README
+```
+
+Expected result:
+
+```text
+Frontend loads
+Backend responds
+Database connects
+```
+
+Do not build challenges yet.
+
+---
+
+# 9. PHASE 1 — Database
+
+Create:
+
+```text
+database/schema.sql
+```
+
+Implement tables for:
+
+```text
+users
+teams
+team_members
+categories
+challenges
+flags
+submissions
+solves
+sessions
+```
+
+Later add:
+
+```text
+integrity_events
+integrity_alerts
+disciplinary_actions
+audit_logs
+```
+
+Database migrations should be version controlled where practical.
+
+---
+
+# 10. PHASE 1 Acceptance Test
+
+Verify:
+
+```text
+[ ] Database created
+[ ] All tables created
+[ ] Primary keys work
+[ ] Foreign keys work
+[ ] Unique constraints work
+[ ] Seed admin account works
+[ ] Seed categories work
+```
+
+Do not continue until these work.
+
+---
+
+# 11. PHASE 2 — Authentication
+
+Implement:
+
+```text
+Registration
+Login
+Logout
+Session management
+Password hashing
+Password verification
+Role-based access
+```
+
+Roles:
+
+```text
+participant
+admin
+super_admin
+```
+
+Passwords must use secure password hashing.
+
+Never store plaintext passwords.
+
+---
+
+# 12. Authentication Security
+
+Implement:
+
+```text
+CSRF protection where applicable
+Session regeneration after login
+Secure cookies
+HttpOnly cookies
+SameSite protection
+Login rate limiting
+Input validation
+Prepared SQL statements
+```
+
+---
+
+# 13. Authentication Acceptance Test
+
+Test:
+
+```text
+Register
+Login
+Wrong password
+Logout
+Session expiry
+Unauthorized API access
+Admin-only endpoint
+Participant accessing admin endpoint
+```
+
+---
+
+# 14. PHASE 3 — Users & Teams
+
+Implement:
+
+```text
+Create team
+Join team
+Leave team
+Team member management
+Team profile
+Participant profile
+Team size limits
+One-team-per-user rule
+```
+
+Admin should be able to:
+
+```text
+View users
+View teams
+Modify team status
+Remove members
+```
+
+---
+
+# 15. PHASE 3 Acceptance Test
+
+Verify:
+
+```text
+[ ] User can create team
+[ ] User can join team
+[ ] Team size limit works
+[ ] User cannot join multiple teams
+[ ] Team leader permissions work
+[ ] Admin can manage teams
+```
+
+---
+
+# 16. PHASE 4 — Challenge System
+
+Implement challenge categories:
+
+```text
+Web
+Pwn
+Crypto
+General
+```
+
+Challenge properties:
+
+```text
+id
+title
+slug
+description
+category
+difficulty
+points
+author
+flag_type
+status
+created_at
+updated_at
+```
+
+Statuses:
+
+```text
+draft
+published
+archived
+```
+
+---
+
+# 17. Challenge Page
+
+Participant should see:
+
+```text
+Challenge name
+Category
+Difficulty
+Points
+Description
+Files
+Hints
+Flag submission box
+Solve status
+```
+
+Example:
+
+```text
+JWT Misconfiguration
+
+Category:
+Web
+
+Difficulty:
+Medium
+
+Points:
+250
+
+[Challenge Description]
+
+Files:
+challenge.zip
+
+Flag:
+[________________]
+
+[Submit Flag]
+```
+
+---
+
+# 18. PHASE 5 — Flag Submission
+
+Implement:
+
+```text
+Submit flag
+Validate flag
+Record submission
+Detect correct/incorrect
+Record solve
+Award points
+Prevent duplicate solve
+```
+
+Important:
+
+The frontend must never contain the correct flag.
+
+Validation must happen server-side.
+
+---
+
+# 19. Submission Flow
+
+```text
+Participant
+     ↓
+Submit Flag
+     ↓
+Backend
+     ↓
+Validate Authentication
+     ↓
+Validate Challenge
+     ↓
+Rate Limit
+     ↓
+Check Flag
+     ↓
+Correct?
+ ┌───┴────┐
+ │        │
+YES       NO
+ │        │
+ ▼        ▼
+Solve   Failed
+ │
+ ▼
+Points
+ │
+ ▼
+Leaderboard
+```
+
+---
+
+# 20. Dynamic Flags
+
+Support:
+
+```text
+Static Flag
+Dynamic Team Flag
+```
+
+For Docker-based challenges:
+
+```text
+Team starts instance
+        ↓
+Backend generates/assigns flag
+        ↓
+Flag associated with team
+        ↓
+Challenge instance contains flag
+        ↓
+Team submits flag
+        ↓
+Backend verifies ownership
+```
+
+This is important for the integrity system.
+
+---
+
+# 21. PHASE 6 — Leaderboard
+
+Implement:
+
+```text
+Global leaderboard
+Team leaderboard
+Solve count
+Points
+Rank
+Last solve
+```
+
+Example:
+
+```text
+Rank   Team          Points   Solves
+
+1      NCA-B4-07     1450     8
+2      NCA-B4-03     1320     7
+3      NCA-B4-11     1180     7
+```
+
+---
+
+# 22. Leaderboard Rules
+
+Leaderboard ranking should use:
+
+```text
+Total Points
+```
+
+and a deterministic tie-breaker.
+
+Recommended:
+
+```text
+1. Total points
+2. Earliest time reaching that score
+```
+
+This creates a standard CTF-style ranking system.
+
+---
+
+# 23. PHASE 7 — Admin Panel
+
+Admin dashboard:
+
+```text
+Overview
+Users
+Teams
+Challenges
+Submissions
+Leaderboard
+Announcements
+Competition Settings
+Integrity
+Audit Logs
+```
+
+---
+
+# 24. Challenge Management
+
+Admin can:
+
+```text
+Create challenge
+Edit challenge
+Publish challenge
+Unpublish challenge
+Archive challenge
+Set points
+Set category
+Upload files
+Configure flag
+Configure dynamic flag
+```
+
+---
+
+# 25. Competition Controls
+
+Admin should be able to configure:
+
+```text
+Competition name
+Start time
+End time
+Registration status
+Competition status
+Team size
+Challenge visibility
+Leaderboard visibility
+```
+
+Competition states:
+
+```text
+NOT_STARTED
+LIVE
+PAUSED
+ENDED
+```
+
+---
+
+# 26. PHASE 8 — Docker Challenge Infrastructure
+
+This phase begins only after the normal CTF platform works.
+
+Do not start with complex container orchestration.
+
+First create one simple Web challenge.
+
+Example:
+
+```text
+challenges/
+└── web/
+    └── challenge01/
+        ├── Dockerfile
+        ├── docker-compose.yml
+        ├── src/
+        └── README.md
+```
+
+---
+
+# 27. First Docker Challenge
+
+Create a deliberately vulnerable educational application.
+
+Example:
+
+```text
+Simple Web Authentication Challenge
+```
+
+Participant:
+
+```text
+Open challenge
+    ↓
+Launch instance
+    ↓
+Receive challenge URL/port
+    ↓
+Exploit vulnerability
+    ↓
+Find flag
+    ↓
+Submit flag
+```
+
+---
+
+# 28. Challenge Instance Architecture
+
+```text
+Participant
+     │
+     ▼
+CTF Backend
+     │
+     ▼
+Instance Manager
+     │
+     ▼
+Docker
+     │
+     ├── Team A Container
+     ├── Team B Container
+     └── Team C Container
+```
+
+Each team should ideally receive an isolated instance.
+
+---
+
+# 29. No VPS Requirement During Development
+
+The platform must initially work locally.
+
+Use:
+
+```text
+Docker Desktop
+or
+Docker Engine
+```
+
+Development environment:
+
+```text
+localhost
+```
+
+Example:
+
+```text
+Frontend:
+localhost:3000
+
+Backend:
+localhost:8000
+
+Database:
+localhost:3306
+```
+
+Challenge containers can run locally.
+
+---
+
+# 30. VPS Strategy
+
+A VPS is NOT required during the initial development.
+
+Build:
+
+```text
+Local
+ ↓
+Docker
+ ↓
+Test
+ ↓
+Git
+ ↓
+Deploy later
+```
+
+When the competition is ready:
+
+```text
+VPS
+ ↓
+Docker
+ ↓
+CTF Platform
+ ↓
+Challenge Containers
+```
+
+This keeps infrastructure costs low during development.
+
+---
+
+# 31. PHASE 9 — Anti-Cheat
+
+Only implement the full integrity system after submissions work correctly.
+
+Implement:
+
+```text
+Event logging
+Flag fingerprinting
+Dynamic flag ownership
+Submission rate limiting
+Solve timeline
+Session correlation
+Suspicious relationship detection
+Risk scoring
+Admin alerts
+Investigation interface
+Disciplinary actions
+Audit logs
+```
+
+Follow all requirements in `ctf7.txt`.
+
+---
+
+# 32. PHASE 10 — Notifications
+
+Implement:
+
+```text
+Competition announcements
+Team notifications
+Challenge announcements
+Admin messages
+Warnings
+Investigation notifications
+```
+
+Example:
+
+```text
+Announcement:
+
+New Web challenges have been released!
+```
+
+---
+
+# 33. PHASE 11 — Security Hardening
+
+Before deployment, test:
+
+```text
+SQL Injection
+XSS
+CSRF
+IDOR
+Authentication bypass
+Authorization bypass
+Session attacks
+Rate-limit bypass
+File upload vulnerabilities
+Path traversal
+Command injection
+Insecure Docker configuration
+API abuse
+```
+
+The platform itself should be treated as a security-sensitive application.
+
+---
+
+# 34. PHASE 12 — Testing
+
+Testing categories:
+
+```text
+Unit Tests
+Integration Tests
+API Tests
+Authentication Tests
+Authorization Tests
+UI Tests
+Security Tests
+Docker Tests
+Load Tests
+Competition Simulation
+```
+
+---
+
+# 35. Competition Simulation
+
+Before the real Batch 4 event:
+
+Create test teams:
+
+```text
+TEST-A
+TEST-B
+TEST-C
+TEST-D
+```
+
+Simulate:
+
+```text
+Normal solving
+Wrong flags
+Rapid submissions
+Dynamic flags
+Team joining
+Leaving
+Admin actions
+Flag sharing
+Suspicious timing
+Disqualification
+```
+
+---
+
+# 36. PHASE 13 — Deployment
+
+Deployment order:
+
+```text
+VPS Setup
+     ↓
+Docker Installation
+     ↓
+Database
+     ↓
+Backend
+     ↓
+Frontend
+     ↓
+Reverse Proxy
+     ↓
+HTTPS
+     ↓
+Challenge Infrastructure
+     ↓
+Monitoring
+     ↓
+Backups
+```
+
+---
+
+# 37. Production Architecture
+
+Recommended:
+
+```text
+                    Internet
+                       │
+                       ▼
+                    HTTPS
+                       │
+                       ▼
+                Reverse Proxy
+                       │
+          ┌────────────┴────────────┐
+          ▼                         ▼
+      Frontend                  Backend API
+                                    │
+                         ┌──────────┼──────────┐
+                         ▼          ▼          ▼
+                      MySQL      Redis*     Docker
+                                             │
+                                  ┌──────────┼─────────┐
+                                  ▼          ▼         ▼
+                               Web        Pwn       Other
+                            Challenge  Challenge  Challenges
+```
+
+`Redis` is optional and can be added later for:
+
+```text
+Rate limiting
+Caching
+Sessions
+Queues
+```
+
+---
+
+# 38. Backups
+
+Production must have backups for:
+
+```text
+Database
+Challenge configurations
+Uploaded files
+Application configuration
+```
+
+Never rely on a single VPS copy.
+
+---
+
+# 39. Monitoring
+
+Monitor:
+
+```text
+CPU
+RAM
+Disk
+Docker containers
+Database
+Application errors
+HTTP errors
+Challenge instances
+```
+
+Important:
+
+```text
+Disk usage
+```
+
+must be monitored because challenge containers and logs can consume storage.
+
+---
+
+# 40. PHASE 14 — Documentation
+
+Final documentation should include:
+
+```text
+Installation Guide
+Developer Guide
+Admin Guide
+Challenge Author Guide
+Deployment Guide
+Security Guide
+API Documentation
+Database Documentation
+CTF Rules
+Anti-Cheat Policy
+Troubleshooting Guide
+```
+
+---
+
+# 41. How MonkeyCode Should Be Used
+
+MonkeyCode should act as the **implementation assistant**, not the system architect.
+
+The architecture is already defined in:
+
+```text
+ctf.txt
+ctf2.txt
+ctf3.txt
+ctf4.txt
+ctf5.txt
+ctf6.txt
+ctf7.txt
+ctf8.txt
+```
+
+MonkeyCode should implement the specification incrementally.
+
+---
+
+# 42. Do NOT Give MonkeyCode Everything at Once
+
+Avoid:
+
+```text
+Build my entire CTF platform using these 8 files.
+```
+
+This can cause:
+
+```text
+Incomplete features
+Conflicting architecture
+Broken database relationships
+Inconsistent APIs
+Security mistakes
+Huge debugging sessions
+```
+
+Instead use controlled phases.
+
+---
+
+# 43. MonkeyCode Initial Context
+
+First provide:
+
+```text
+ctf.txt
+ctf2.txt
+ctf3.txt
+ctf4.txt
+ctf5.txt
+ctf6.txt
+ctf7.txt
+ctf8.txt
+```
+
+Then tell MonkeyCode:
+
+```text
+Read all project planning documents first.
+
+Do not implement anything yet.
+
+Analyze the architecture, requirements, database,
+backend, frontend, Docker infrastructure and
+integrity system.
+
+Create a concise implementation plan showing:
+
+1. Current architecture
+2. Required project structure
+3. Dependencies
+4. Development phases
+5. Potential conflicts
+6. Security concerns
+7. Questions or ambiguities
+
+Do not modify files yet.
+Wait for implementation instructions.
+```
+
+---
+
+# 44. Why This Is Important
+
+This forces the AI to understand:
+
+```text
+WHAT
+```
+
+before deciding:
+
+```text
+HOW
+```
+
+You remain in control.
+
+---
+
+# 45. First MonkeyCode Implementation Prompt
+
+After analysis:
+
+```text
+Begin PHASE 0 only.
+
+Create the project structure defined in ctf8.txt.
+
+Implement only:
+
+- Repository structure
+- Environment configuration
+- Basic frontend entry page
+- Backend entry point
+- Database connection layer
+- Basic API health endpoint
+- README
+- .gitignore
+- .env.example
+
+Do NOT implement authentication,
+teams, challenges, leaderboard,
+Docker challenge instances or anti-cheat yet.
+
+After implementation, run the available tests/checks.
+
+Report:
+1. Files created
+2. Files modified
+3. Commands executed
+4. Test results
+5. Any problems
+
+Do not continue to PHASE 1 automatically.
+```
+
+---
+
+# 46. After Phase 0
+
+You inspect the generated project.
+
+Run it locally.
+
+Confirm:
+
+```text
+Frontend works
+Backend works
+Database connects
+API works
+```
+
+Only then proceed.
+
+---
+
+# 47. Phase 1 Prompt
+
+```text
+Begin PHASE 1 only.
+
+Implement the database architecture defined in ctf4.txt.
+
+Create:
+
+- Database schema
+- Tables
+- Relationships
+- Constraints
+- Indexes
+- Seed data
+
+Do not implement authentication or frontend features yet.
+
+Use secure database design.
+
+After implementation:
+
+1. Validate the schema
+2. Test relationships
+3. Test constraints
+4. Test seed data
+
+Report all changes and test results.
+
+Do not continue to PHASE 2 automatically.
+```
+
+---
+
+# 48. Phase 2 Prompt
+
+```text
+Begin PHASE 2 only.
+
+Implement authentication according to ctf5.txt.
+
+Implement:
+
+- Registration
+- Login
+- Logout
+- Password hashing
+- Session management
+- Role-based authorization
+- Authentication middleware
+- Rate limiting
+
+Use secure practices.
+
+Test:
+
+- Valid registration
+- Duplicate email
+- Invalid login
+- Valid login
+- Logout
+- Unauthorized API access
+- Participant accessing admin endpoint
+
+Do not implement teams, challenges or leaderboard yet.
+
+Report all changes and test results.
+```
+
+---
+
+# 49. Repeat This Pattern
+
+Every phase should follow:
+
+```text
+Read specification
+       ↓
+Implement ONE phase
+       ↓
+Run tests
+       ↓
+Review output
+       ↓
+Fix problems
+       ↓
+Commit changes
+       ↓
+Next phase
+```
+
+---
+
+# 50. Never Let MonkeyCode Silently Expand Scope
+
+If you ask:
+
+```text
+Implement authentication
+```
+
+and it decides to also build:
+
+```text
+Leaderboard
+Docker
+Anti-Cheat
+Admin
+```
+
+stop it.
+
+Use:
+
+```text
+Do not expand the scope beyond the requested phase.
+```
+
+---
+
+# 51. Prompt After Every Phase
+
+Use:
+
+```text
+Before moving forward, verify that your implementation
+matches the relevant project specification.
+
+List:
+
+- Completed requirements
+- Missing requirements
+- Security concerns
+- Technical debt
+- Tests performed
+- Known bugs
+
+Do not implement the next phase.
+```
+
+---
+
+# 52. Git Strategy
+
+Commit after every stable phase.
+
+Example:
+
+```text
+git add .
+git commit -m "phase 0: initialize project"
+```
+
+Then:
+
+```text
+git commit -m "phase 1: implement database schema"
+git commit -m "phase 2: implement authentication"
+git commit -m "phase 3: implement teams"
+```
+
+This makes rollback easy.
+
+---
+
+# 53. Recommended Branches
+
+Use:
+
+```text
+main
+develop
+```
+
+Optional feature branches:
+
+```text
+feature/auth
+feature/teams
+feature/challenges
+feature/leaderboard
+feature/docker
+feature/integrity
+```
+
+---
+
+# 54. MonkeyCode Debugging Workflow
+
+When something breaks, do NOT say:
+
+```text
+Fix everything.
+```
+
+Instead:
+
+```text
+The login API is returning HTTP 500.
+
+Here is the error:
+
+[PASTE ERROR]
+
+Investigate only the authentication module.
+
+Do not rewrite unrelated components.
+
+Identify the root cause first.
+
+Then propose the smallest safe fix.
+
+After applying the fix, test the login flow.
+```
+
+---
+
+# 55. Never Hide Errors
+
+MonkeyCode should not:
+
+```text
+Suppress exceptions
+Remove error handling
+Disable security checks
+Hardcode credentials
+```
+
+to make the application "work."
+
+If something fails:
+
+```text
+Find the cause.
+```
+
+---
+
+# 56. Environment Variables
+
+Sensitive configuration must use:
+
+```text
+.env
+```
+
+Examples:
+
+```text
+DB_HOST=
+DB_NAME=
+DB_USER=
+DB_PASSWORD=
+
+APP_ENV=
+APP_SECRET=
+
+SESSION_SECRET=
+
+DOCKER_HOST=
+```
+
+Never commit:
+
+```text
+.env
+```
+
+to Git.
+
+Commit:
+
+```text
+.env.example
+```
+
+instead.
+
+---
+
+# 57. Challenge Development Workflow
+
+Each challenge should be developed independently.
+
+Example:
+
+```text
+Challenge:
+JWT Misconfiguration
+
+Development:
+
+Create challenge
+      ↓
+Create Dockerfile
+      ↓
+Build container
+      ↓
+Run locally
+      ↓
+Test exploit
+      ↓
+Verify flag
+      ↓
+Test reset
+      ↓
+Document solution
+      ↓
+Add to CTF platform
+```
+
+---
+
+# 58. Challenge Author Package
+
+Every challenge should eventually contain:
+
+```text
+challenge/
+├── Dockerfile
+├── docker-compose.yml
+├── src/
+├── README.md
+├── challenge.yml
+└── solution.md
+```
+
+`solution.md` must NOT be exposed to participants.
+
+---
+
+# 59. Challenge Metadata
+
+Example:
+
+```yaml
+name: JWT Misconfiguration
+category: web
+difficulty: medium
+points: 250
+type: docker
+flag_type: dynamic
+author: NCA
+```
+
+---
+
+# 60. Docker Security
+
+Challenge containers should be isolated.
+
+Avoid giving challenges:
+
+```text
+privileged: true
+host networking
+host filesystem mounts
+Docker socket
+unnecessary capabilities
+```
+
+unless specifically required for a controlled challenge.
+
+---
+
+# 61. Platform Security Boundary
+
+The challenge container must not automatically be able to access:
+
+```text
+CTF database
+Host filesystem
+Docker socket
+Admin API
+Other teams' containers
+```
+
+unless explicitly required by a challenge.
+
+---
+
+# 62. Testing Before Deployment
+
+Perform:
+
+```text
+Functional Testing
+Security Testing
+Container Testing
+Authentication Testing
+Authorization Testing
+Integrity Testing
+Load Testing
+Backup Testing
+Recovery Testing
+```
+
+---
+
+# 63. Final Competition Test
+
+Simulate a complete competition.
+
+Example:
+
+```text
+20 test accounts
+5 test teams
+10 challenges
+Docker instances
+Flag submissions
+Leaderboard updates
+Announcements
+Admin actions
+Integrity alerts
+Disqualification
+```
+
+Run the simulation before real participants are invited.
+
+---
+
+# 64. Production Launch Checklist
+
+```text
+[ ] HTTPS configured
+[ ] Database secured
+[ ] Default credentials removed
+[ ] Admin accounts secured
+[ ] Debug mode disabled
+[ ] Error pages configured
+[ ] Rate limiting enabled
+[ ] Backups configured
+[ ] Docker isolation tested
+[ ] Challenge containers tested
+[ ] Anti-cheat enabled
+[ ] Audit logging enabled
+[ ] Monitoring enabled
+[ ] Disk monitoring enabled
+[ ] CTF rules published
+[ ] Team limits configured
+[ ] Competition dates configured
+[ ] Test competition completed
+```
+
+---
+
+# 65. Final Development Order
+
+The exact implementation order is:
+
+```text
+01. Project Foundation
+        ↓
+02. Database
+        ↓
+03. Authentication
+        ↓
+04. Users & Teams
+        ↓
+05. Challenge Management
+        ↓
+06. Flag Submission
+        ↓
+07. Leaderboard
+        ↓
+08. Admin Panel
+        ↓
+09. Competition Controls
+        ↓
+10. First Docker Challenge
+        ↓
+11. Docker Instance Manager
+        ↓
+12. Dynamic Flags
+        ↓
+13. Anti-Cheat
+        ↓
+14. Notifications
+        ↓
+15. Security Hardening
+        ↓
+16. Testing
+        ↓
+17. Deployment
+        ↓
+18. Competition Simulation
+        ↓
+19. Batch 4 Launch
+```
+
+---
+
+# 66. MonkeyCode Golden Rule
+
+MonkeyCode must follow:
+
+```text
+UNDERSTAND
+    ↓
+PLAN
+    ↓
+IMPLEMENT
+    ↓
+TEST
+    ↓
+REPORT
+    ↓
+WAIT
+```
+
+It must NOT follow:
+
+```text
+PROMPT
+   ↓
+BUILD EVERYTHING
+   ↓
+HOPE IT WORKS
+```
+
+---
+
+# 67. Developer's Role
+
+The developer should remain responsible for:
+
+```text
+Architecture
+Security decisions
+Challenge design
+Testing
+Code review
+Infrastructure
+Deployment
+Competition rules
+Final approval
+```
+
+MonkeyCode is an implementation assistant.
+
+It should not independently decide important security architecture.
+
+---
+
+# 68. Final Goal
+
+The completed project should feel like a real private CTF platform rather than a simple student website.
+
+Participants should experience:
+
+```text
+Register
+   ↓
+Login
+   ↓
+Create/Join Team
+   ↓
+Dashboard
+   ↓
+Browse Challenges
+   ↓
+Launch Challenge
+   ↓
+Hack
+   ↓
+Find Flag
+   ↓
+Submit Flag
+   ↓
+Earn Points
+   ↓
+Leaderboard
+```
+
+Administrators should experience:
+
+```text
+Admin Login
+   ↓
+Dashboard
+   ↓
+Manage Users
+   ↓
+Manage Teams
+   ↓
+Manage Challenges
+   ↓
+Monitor Competition
+   ↓
+Monitor Integrity
+   ↓
+Investigate Suspicious Activity
+   ↓
+Take Action
+   ↓
+Review Audit Logs
+```
+
+The final platform should demonstrate practical skills in:
+
+```text
+Web Development
+Backend Development
+Database Design
+Authentication
+API Security
+Docker
+Cybersecurity
+CTF Infrastructure
+Security Monitoring
+Anti-Cheat Engineering
+System Administration
+DevSecOps
+```
+
+---
+
+# END OF CTF8
