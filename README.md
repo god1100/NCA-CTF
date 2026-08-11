@@ -5,11 +5,13 @@ cybersecurity training students. See `docs/` for the full specification
 set (`ctf.txt` through `ctf9.txt`); `docs/ctf9.txt` is authoritative
 where documents disagree.
 
-**Current status: Phase 0 — Foundation**
+**Current status: Phase 1 — Database Foundation (complete)**
 
-This phase is the project skeleton and development environment only.
-No authentication, database schema, challenge logic, Docker
-orchestration, or anti-cheat system exists yet.
+Phase 0 established the project skeleton. Phase 1 adds the complete
+relational database schema, migration tooling, and seed data. No
+authentication, registration, login, session management, team APIs,
+challenge APIs, or flag submission logic exists yet — those are Phase 2+.
+See `docs/PHASE1_REPORT.md` for the full closure report.
 
 ---
 
@@ -32,8 +34,8 @@ architecturally separate systems (`docs/ctf6.txt`).
 ## 2. Current Phase
 
 ```text
-Phase 0 — Foundation        ← YOU ARE HERE
-Phase 1 — Database
+Phase 0 — Foundation            complete
+Phase 1 — Database               complete  ← YOU ARE HERE
 Phase 2 — Authentication
 Phase 3 — Teams
 Phase 4 — Challenges
