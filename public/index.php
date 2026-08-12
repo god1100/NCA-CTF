@@ -29,6 +29,7 @@ if (is_file($baseDir . '/vendor/autoload.php')) {
 
 use App\Infrastructure\Env;
 use App\Infrastructure\Router;
+use App\Infrastructure\Session;
 
 // --- Environment -------------------------------------------------------
 Env::load($baseDir . '/.env');
@@ -55,6 +56,7 @@ $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
 
 if (str_starts_with($uri, '/api/')) {
+    Session::start();
     $router = new Router();
     $registerRoutes = require $baseDir . '/routes/api.php';
     $registerRoutes($router);

@@ -96,11 +96,11 @@ foreach ($phpFiles as $file) {
 check("All $checkedCount PHP files have valid syntax", $syntaxOk, $failures, $passes);
 
 echo "\nBusiness-logic exclusions (still must NOT exist)\n";
-check('No auth controller yet', !is_file("$root/app/Controllers/AuthController.php"), $failures, $passes);
 check('No docker-compose.yml at root yet', !is_file("$root/docker-compose.yml"), $failures, $passes);
-// NOTE: "no database migrations" was a valid Phase 0 check but is
-// intentionally retired now that Phase 1 (docs/ctf9.txt Phase 1) has
-// added database/migrations/*.sql. This script continues to validate that
+// NOTE: "no auth controller" and "no database migrations" were valid
+// Phase 0 checks but are intentionally retired now that Phase 1 (database)
+// and Phase 2 (authentication) have legitimately added those files, per
+// docs/ctf9.txt's phased roadmap. This script continues to validate that
 // Phase 0's own deliverables still work; it is not meant to gate future
 // phases from existing.
 

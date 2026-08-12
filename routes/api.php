@@ -15,11 +15,29 @@ declare(strict_types=1);
  * from the front controller.
  */
 
+use App\Controllers\AuthController;
 use App\Controllers\HealthController;
 use App\Infrastructure\Router;
 
 return static function (Router $router): void {
     $router->get('/api/v1/health', static function (): void {
         (new HealthController())->index();
+    });
+
+    // --- Authentication (Phase 2) -------------------------------------
+    $router->post('/api/v1/auth/register', static function (): void {
+        (new AuthController())->register();
+    });
+
+    $router->post('/api/v1/auth/login', static function (): void {
+        (new AuthController())->login();
+    });
+
+    $router->post('/api/v1/auth/logout', static function (): void {
+        (new AuthController())->logout();
+    });
+
+    $router->get('/api/v1/auth/me', static function (): void {
+        (new AuthController())->me();
     });
 };

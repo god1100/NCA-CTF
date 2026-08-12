@@ -5,13 +5,15 @@ cybersecurity training students. See `docs/` for the full specification
 set (`ctf.txt` through `ctf9.txt`); `docs/ctf9.txt` is authoritative
 where documents disagree.
 
-**Current status: Phase 1 — Database Foundation (complete)**
+**Current status: Phase 2 — Authentication (complete)**
 
-Phase 0 established the project skeleton. Phase 1 adds the complete
-relational database schema, migration tooling, and seed data. No
-authentication, registration, login, session management, team APIs,
-challenge APIs, or flag submission logic exists yet — those are Phase 2+.
-See `docs/PHASE1_REPORT.md` for the full closure report.
+Phase 0 established the project skeleton. Phase 1 added the complete
+relational database schema. Phase 2 adds registration, login, logout,
+session management, CSRF protection, rate limiting, and role-based
+authorization middleware. No teams, challenge CRUD, flag submission,
+leaderboard, admin dashboard, Docker orchestration, or anti-cheat system
+exists yet — those are Phase 3+. See `docs/PHASE1_REPORT.md` and
+`docs/PHASE2_REPORT.md` for full closure reports.
 
 ---
 
@@ -34,9 +36,9 @@ architecturally separate systems (`docs/ctf6.txt`).
 ## 2. Current Phase
 
 ```text
-Phase 0 — Foundation            complete
-Phase 1 — Database               complete  ← YOU ARE HERE
-Phase 2 — Authentication
+Phase 0 — Foundation             complete
+Phase 1 — Database                complete
+Phase 2 — Authentication          complete  ← YOU ARE HERE
 Phase 3 — Teams
 Phase 4 — Challenges
 Phase 5 — Flag Submission
@@ -154,6 +156,27 @@ Response:
 ```
 
 This is the only implemented endpoint. It does not touch the database.
+
+## 7a. Authentication API (Phase 2)
+
+```text
+POST /api/v1/auth/register   { username, email, password, full_name? }
+POST /api/v1/auth/login      { identifier, password }
+POST /api/v1/auth/logout     (requires session + X-CSRF-Token header)
+GET  /api/v1/auth/me         (requires session)
+```
+
+- Sessions use native PHP sessions with `HttpOnly`, `SameSite=Lax`
+  cookies (`Secure` added automatically when `APP_ENV=production`).
+- `login` and `me` responses include a `csrf_token` — send it back as
+  `X-CSRF-Token` on subsequent state-changing authenticated requests.
+- Login failures are intentionally generic (`INVALID_CREDENTIALS`) and
+  never reveal whether the identifier exists.
+- Repeated failed attempts are rate-limited (429) per IP and per
+  identifier — see `AUTH_RATE_LIMIT_MAX_ATTEMPTS` / `_WINDOW_SECONDS`
+  in `.env.example`.
+- New accounts are always created with role `participant` and status
+  `active` server-side — the client cannot set role, status, or user ID.
 
 ## 8. Development Roadmap
 
