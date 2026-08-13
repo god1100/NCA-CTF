@@ -21,12 +21,40 @@ final class AuditLogger
     public const AUTHORIZATION_FAILURE = 'AUTHORIZATION_FAILURE';
     public const RATE_LIMIT_BLOCKED = 'RATE_LIMIT_BLOCKED';
 
+    // --- Phase 3: team management -----------------------------------
+    public const TEAM_CREATED = 'TEAM_CREATED';
+    public const TEAM_INVITATION_CREATED = 'TEAM_INVITATION_CREATED';
+    public const TEAM_INVITATION_ACCEPTED = 'TEAM_INVITATION_ACCEPTED';
+    public const TEAM_INVITATION_REJECTED = 'TEAM_INVITATION_REJECTED';
+    public const TEAM_MEMBER_REMOVED = 'TEAM_MEMBER_REMOVED';
+    public const TEAM_MEMBER_LEFT = 'TEAM_MEMBER_LEFT';
+    public const CAPTAIN_TRANSFERRED = 'CAPTAIN_TRANSFERRED';
+
     public function __construct(private readonly AuditLogRepository $repository)
     {
     }
 
-    public function log(string $action, ?int $userId = null, array $metadata = [], ?string $ipHash = null): void
-    {
-        $this->repository->record($userId, $action, 'user', $userId, $metadata, $ipHash);
+    /**
+     * @param string|null $entityType Defaults to 'user' (matching Phase 2
+     *   auth events). Phase 3 team events pass 'team' explicitly.
+     * @param int|null $entityId Defaults to $userId when $entityType is
+     *   left as the default, preserving Phase 2 call sites unchanged.
+     */
+    public function log(
+        string $action,
+        ?int $userId = null,
+        array $metadata = [],
+        ?string $ipHash = null,
+        ?string $entityType = null,
+        ?int $entityId = null
+    ): void {
+        $this->repository->record(
+            $userId,
+            $action,
+            $entityType ?? 'user',
+            $entityType === null ? $userId : $entityId,
+            $metadata,
+            $ipHash
+        );
     }
 }

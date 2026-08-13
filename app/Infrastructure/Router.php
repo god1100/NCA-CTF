@@ -5,26 +5,77 @@ declare(strict_types=1);
 namespace App\Infrastructure;
 
 /**
- * Minimal request router.
+ * Request router.
  *
- * Phase 0 scope: exact-path GET/POST/PUT/PATCH/DELETE matching only.
- * This intentionally does not implement route parameters, groups, or
- * middleware stacks — those are added as later phases need them
- * (e.g. Phase 2 auth middleware, Phase 4 `/challenges/{slug}`).
+ * Phase 0 introduced exact-path GET/POST matching only. Phase 3 extends
+ * this — exactly as anticipated in the original class comment — to
+ * support DELETE/PUT/PATCH and `{param}` path segments (e.g.
+ * `/teams/me/members/{user_id}`), needed for team member and invitation
+ * endpoints. Exact-path routes registered by earlier phases (e.g.
+ * `/api/v1/auth/login`) continue to work unchanged: a literal path is
+ * just a pattern with zero parameters.
+ *
+ * Still intentionally minimal: no route groups, no global middleware
+ * stack. Middleware composition continues to happen inside each route's
+ * closure, as established in Phase 2 (AuthMiddleware::handle(...)).
  */
 final class Router
 {
-    /** @var array<string, array<string, callable>> */
+    /**
+     * @var array<string, list<array{pattern: string, paramNames: list<string>, handler: callable}>>
+     */
     private array $routes = [];
 
     public function get(string $path, callable $handler): void
     {
-        $this->routes['GET'][$path] = $handler;
+        $this->add('GET', $path, $handler);
     }
 
     public function post(string $path, callable $handler): void
     {
-        $this->routes['POST'][$path] = $handler;
+        $this->add('POST', $path, $handler);
+    }
+
+    public function put(string $path, callable $handler): void
+    {
+        $this->add('PUT', $path, $handler);
+    }
+
+    public function delete(string $path, callable $handler): void
+    {
+        $this->add('DELETE', $path, $handler);
+    }
+
+    private function add(string $method, string $path, callable $handler): void
+    {
+        [$pattern, $paramNames] = self::compile($path);
+        $this->routes[$method][] = [
+            'pattern' => $pattern,
+            'paramNames' => $paramNames,
+            'handler' => $handler,
+        ];
+    }
+
+    /**
+     * Converts a path like `/api/v1/teams/me/members/{user_id}` into a
+     * regex and the ordered list of parameter names it captures.
+     *
+     * @return array{0: string, 1: list<string>}
+     */
+    private static function compile(string $path): array
+    {
+        $paramNames = [];
+        $regex = preg_replace_callback(
+            '#\{([a-zA-Z_][a-zA-Z0-9_]*)\}#',
+            static function (array $m) use (&$paramNames): string {
+                $paramNames[] = $m[1];
+                // Path segments only -- no slashes inside a captured param.
+                return '([^/]+)';
+            },
+            $path
+        );
+
+        return ['#^' . $regex . '$#', $paramNames];
     }
 
     public function dispatch(string $method, string $path): void
@@ -35,14 +86,19 @@ final class Router
             $path = '/';
         }
 
-        $handler = $this->routes[$method][$path] ?? null;
+        foreach ($this->routes[$method] ?? [] as $route) {
+            if (preg_match($route['pattern'], $path, $matches) === 1) {
+                $params = [];
+                foreach ($route['paramNames'] as $i => $name) {
+                    $params[$name] = urldecode($matches[$i + 1]);
+                }
 
-        if ($handler === null) {
-            $this->notFound();
-            return;
+                ($route['handler'])($params);
+                return;
+            }
         }
 
-        $handler();
+        $this->notFound();
     }
 
     private function notFound(): void

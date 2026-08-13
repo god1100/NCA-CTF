@@ -5,15 +5,15 @@ cybersecurity training students. See `docs/` for the full specification
 set (`ctf.txt` through `ctf9.txt`); `docs/ctf9.txt` is authoritative
 where documents disagree.
 
-**Current status: Phase 2 — Authentication (complete)**
+**Current status: Phase 3 — Team Management (complete)**
 
-Phase 0 established the project skeleton. Phase 1 added the complete
-relational database schema. Phase 2 adds registration, login, logout,
-session management, CSRF protection, rate limiting, and role-based
-authorization middleware. No teams, challenge CRUD, flag submission,
-leaderboard, admin dashboard, Docker orchestration, or anti-cheat system
-exists yet — those are Phase 3+. See `docs/PHASE1_REPORT.md` and
-`docs/PHASE2_REPORT.md` for full closure reports.
+Phase 0 established the project skeleton. Phase 1 added the database
+schema. Phase 2 added authentication. Phase 3 adds team creation,
+membership, captaincy, and secure token-based invitations. No challenge
+CRUD, flag submission, leaderboard, admin dashboard, Docker
+orchestration, or anti-cheat system exists yet — those are Phase 4+.
+See `docs/PHASE1_REPORT.md`, `docs/PHASE2_REPORT.md`, and
+`docs/PHASE3_REPORT.md` for full closure reports.
 
 ---
 
@@ -38,8 +38,8 @@ architecturally separate systems (`docs/ctf6.txt`).
 ```text
 Phase 0 — Foundation             complete
 Phase 1 — Database                complete
-Phase 2 — Authentication          complete  ← YOU ARE HERE
-Phase 3 — Teams
+Phase 2 — Authentication           complete
+Phase 3 — Teams                     complete  ← YOU ARE HERE
 Phase 4 — Challenges
 Phase 5 — Flag Submission
 Phase 6 — Leaderboard
@@ -177,6 +177,40 @@ GET  /api/v1/auth/me         (requires session)
   in `.env.example`.
 - New accounts are always created with role `participant` and status
   `active` server-side — the client cannot set role, status, or user ID.
+
+## 7b. Team Management API (Phase 3)
+
+```text
+POST   /api/v1/teams                                { name }
+GET    /api/v1/teams/me
+GET    /api/v1/teams/me/members
+DELETE /api/v1/teams/me/members/{user_id}
+POST   /api/v1/teams/me/leave
+POST   /api/v1/teams/me/transfer-captain             { user_id }
+GET    /api/v1/teams/{id}
+POST   /api/v1/teams/me/invitations                  { email }
+GET    /api/v1/teams/me/invitations
+POST   /api/v1/team-invitations/{token}/accept
+POST   /api/v1/team-invitations/{token}/reject
+```
+
+- All endpoints require an authenticated session; all state-changing
+  endpoints require `X-CSRF-Token`.
+- The acting team is always resolved from the authenticated user's
+  session-derived membership — never from a client-supplied `team_id`,
+  which is what prevents a captain of Team A from touching Team B's data
+  via ID manipulation.
+- `team_min_size` / `team_max_size` come from the `system_settings` table
+  (seeded in Phase 1), not hardcoded — see `docs/PHASE3_REPORT.md` for
+  full rule details.
+- Invitations are matched to their recipient by comparing the
+  authenticated accepting/rejecting user's email against
+  `team_invitations.invited_email` — no new database column was needed.
+- The invitation token is returned in the `create invitation` response
+  body exactly once (no email delivery yet — see `docs/PHASE3_REPORT.md`)
+  and stored in the database only as a SHA-256 hash.
+- A captain cannot leave a team with other active members without first
+  transferring captaincy (`transfer-captain`).
 
 ## 8. Development Roadmap
 
