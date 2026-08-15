@@ -5,15 +5,17 @@ cybersecurity training students. See `docs/` for the full specification
 set (`ctf.txt` through `ctf9.txt`); `docs/ctf9.txt` is authoritative
 where documents disagree.
 
-**Current status: Phase 3 — Team Management (complete)**
+**Current status: Phase 4 — Challenge System (complete)**
 
 Phase 0 established the project skeleton. Phase 1 added the database
-schema. Phase 2 added authentication. Phase 3 adds team creation,
-membership, captaincy, and secure token-based invitations. No challenge
-CRUD, flag submission, leaderboard, admin dashboard, Docker
-orchestration, or anti-cheat system exists yet — those are Phase 4+.
-See `docs/PHASE1_REPORT.md`, `docs/PHASE2_REPORT.md`, and
-`docs/PHASE3_REPORT.md` for full closure reports.
+schema. Phase 2 added authentication. Phase 3 added team management.
+Phase 4 adds the full challenge system: categories, challenge CRUD and
+lifecycle, secure file attachments, hints, and admin-only flag
+management. No flag submission, scoring, leaderboard, Docker
+orchestration, or anti-cheat system exists yet — those are Phase 5+.
+See `docs/PHASE1_REPORT.md`, `docs/PHASE2_REPORT.md`,
+`docs/PHASE3_REPORT.md`, and `docs/PHASE4_REPORT.md` for full closure
+reports.
 
 ---
 
@@ -39,8 +41,8 @@ architecturally separate systems (`docs/ctf6.txt`).
 Phase 0 — Foundation             complete
 Phase 1 — Database                complete
 Phase 2 — Authentication           complete
-Phase 3 — Teams                     complete  ← YOU ARE HERE
-Phase 4 — Challenges
+Phase 3 — Teams                     complete
+Phase 4 — Challenges                 complete  ← YOU ARE HERE
 Phase 5 — Flag Submission
 Phase 6 — Leaderboard
 Phase 7 — Admin
@@ -211,6 +213,53 @@ POST   /api/v1/team-invitations/{token}/reject
   and stored in the database only as a SHA-256 hash.
 - A captain cannot leave a team with other active members without first
   transferring captaincy (`transfer-captain`).
+
+## 7c. Challenge System API (Phase 4)
+
+```text
+GET    /api/v1/categories
+GET    /api/v1/challenges                            ?category=&difficulty=&page=&per_page=
+GET    /api/v1/challenges/{slug-or-id}
+POST   /api/v1/challenges                             { title, description, category, difficulty, points, deployment_type }   [admin]
+PUT    /api/v1/challenges/{id}                                                                                                  [admin]
+DELETE /api/v1/challenges/{id}                        (only draft/testing)                                                     [admin]
+POST   /api/v1/challenges/{id}/publish                                                                                          [admin]
+POST   /api/v1/challenges/{id}/pause                                                                                            [admin]
+POST   /api/v1/challenges/{id}/archive                                                                                          [admin]
+POST   /api/v1/challenges/{id}/files                  (multipart, field name "file")                                           [admin]
+GET    /api/v1/challenges/{id}/files
+GET    /api/v1/challenge-files/{id}/download
+DELETE /api/v1/challenge-files/{id}                                                                                             [admin]
+POST   /api/v1/challenges/{id}/hints                  { title?, content, point_penalty? }                                      [admin]
+GET    /api/v1/challenges/{id}/hints
+PUT    /api/v1/challenge-hints/{id}                                                                                             [admin]
+DELETE /api/v1/challenge-hints/{id}                                                                                             [admin]
+POST   /api/v1/challenge-hints/{id}/reveal
+POST   /api/v1/challenges/{id}/flag                   { flag }                                                                  [admin]
+PUT    /api/v1/challenges/{id}/flag                   { flag }                                                                  [admin]
+GET    /api/v1/challenges/{id}/flag                                                                                             [admin]
+```
+
+`[admin]` = requires `challenge_admin` or `super_admin`.
+
+- All endpoints require an authenticated session; all state-changing
+  endpoints require `X-CSRF-Token`.
+- Participants only ever see `published`/`running` challenges — a
+  draft/testing challenge returns an identical `404` whether it exists
+  or not, preventing enumeration.
+- Challenge status changes only through `publish`/`pause`/`archive` —
+  never through the generic `PUT` update, which touches content fields
+  only.
+- File uploads are stored under `storage/uploads/challenges/` (outside
+  `public/`) with a fully server-generated filename; the client's
+  original filename is kept only as display metadata, never used to
+  build a filesystem path.
+- **Flags are managed, never submitted, in this phase.** `flag_hash` is
+  never returned by any endpoint, admin included — see
+  `docs/PHASE4_REPORT.md` §8 for the hashing approach.
+- Hint `reveal` returns content to any authenticated user on a visible
+  challenge; there is no reveal-tracking or point-penalty deduction yet
+  (deferred to the scoring phase — see `docs/PHASE4_REPORT.md` §15).
 
 ## 8. Development Roadmap
 

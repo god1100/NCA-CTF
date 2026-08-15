@@ -1,0 +1,177 @@
+/*
+ * NCA Batch 4 CTF — Challenges Page Styles (Phase 4)
+ * Reuses the design tokens defined in style.css (docs/ctf3.txt §2-3).
+ * Does not redefine or override the base design system.
+ */
+
+.challenges-page {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 4rem;
+}
+
+.challenges-page__notice {
+    background: var(--color-card);
+    border: 1px solid var(--color-warning);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    color: var(--color-text-secondary);
+}
+
+.challenges-page__title {
+    font-size: 1.6rem;
+    margin: 0 0 1.25rem 0;
+}
+
+.filters {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.filters__field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    font-family: var(--font-mono);
+}
+
+.filters__field select {
+    background: var(--color-card);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+    border-radius: 6px;
+    padding: 0.45rem 0.6rem;
+    font-family: var(--font-ui);
+}
+
+.challenge-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1rem;
+}
+
+.challenge-card {
+    background: var(--color-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+}
+
+.challenge-card:hover {
+    border-color: var(--color-accent);
+}
+
+.challenge-card__category {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.challenge-card__title {
+    font-size: 1.05rem;
+    margin: 0.4rem 0;
+}
+
+.challenge-card__meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.75rem;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+}
+
+.difficulty {
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+}
+
+.difficulty--easy { color: var(--color-success); border: 1px solid var(--color-success); }
+.difficulty--medium { color: var(--color-warning); border: 1px solid var(--color-warning); }
+.difficulty--hard { color: var(--color-danger); border: 1px solid var(--color-danger); }
+.difficulty--insane { color: var(--color-info); border: 1px solid var(--color-info); }
+
+.points {
+    color: var(--color-accent);
+    font-weight: 700;
+}
+
+.empty-state {
+    color: var(--color-text-muted);
+    text-align: center;
+    padding: 3rem 0;
+}
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 2rem;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+}
+
+.challenge-detail {
+    background: var(--color-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+}
+
+.challenge-detail__back {
+    background: none;
+    border: none;
+    color: var(--color-text-secondary);
+    font-family: var(--font-mono);
+    cursor: pointer;
+    padding: 0;
+    margin-bottom: 1rem;
+    font-size: 0.85rem;
+}
+
+.challenge-detail__section {
+    border-top: 1px solid var(--color-border);
+    padding-top: 1rem;
+    margin-top: 1rem;
+}
+
+.challenge-detail__section h3 {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-muted);
+    margin: 0 0 0.6rem 0;
+}
+
+.file-row, .hint-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.file-row:last-child, .hint-row:last-child {
+    border-bottom: none;
+}
+
+.hint-row__content {
+    color: var(--color-text-secondary);
+    display: block;
+    margin-top: 0.4rem;
+    font-family: var(--font-ui);
+}

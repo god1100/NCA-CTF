@@ -64,7 +64,13 @@ if (str_starts_with($uri, '/api/')) {
     exit;
 }
 
-// --- Static landing page --------------------------------------------------
-// Anything that isn't an /api/ request gets the Phase 0 landing page.
-// Login, register, dashboard, and challenge pages are later phases.
+// --- Static pages --------------------------------------------------------
+// Challenges listing (Phase 4). Anything else that isn't an /api/
+// request gets the Phase 0 landing page. Login, register, and dashboard
+// pages remain later phases.
+if ($uri === '/challenges' || $uri === '/challenges/') {
+    require $baseDir . '/resources/views/challenges.php';
+    exit;
+}
+
 require $baseDir . '/resources/views/landing.php';

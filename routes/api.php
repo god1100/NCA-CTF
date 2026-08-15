@@ -16,6 +16,10 @@ declare(strict_types=1);
  */
 
 use App\Controllers\AuthController;
+use App\Controllers\ChallengeController;
+use App\Controllers\ChallengeFileController;
+use App\Controllers\ChallengeHintController;
+use App\Controllers\FlagController;
 use App\Controllers\HealthController;
 use App\Controllers\TeamController;
 use App\Controllers\TeamInvitationController;
@@ -87,5 +91,98 @@ return static function (Router $router): void {
 
     $router->post('/api/v1/team-invitations/{token}/reject', static function (array $params): void {
         (new TeamInvitationController())->reject($params);
+    });
+
+    // --- Challenges (Phase 4) --------------------------------------------
+    $router->get('/api/v1/categories', static function (): void {
+        (new ChallengeController())->categories();
+    });
+
+    $router->get('/api/v1/challenges', static function (): void {
+        (new ChallengeController())->index();
+    });
+
+    $router->post('/api/v1/challenges', static function (): void {
+        (new ChallengeController())->create();
+    });
+
+    $router->put('/api/v1/challenges/{id}', static function (array $params): void {
+        (new ChallengeController())->update($params);
+    });
+
+    $router->delete('/api/v1/challenges/{id}', static function (array $params): void {
+        (new ChallengeController())->delete($params);
+    });
+
+    $router->post('/api/v1/challenges/{id}/publish', static function (array $params): void {
+        (new ChallengeController())->publish($params);
+    });
+
+    $router->post('/api/v1/challenges/{id}/pause', static function (array $params): void {
+        (new ChallengeController())->pause($params);
+    });
+
+    $router->post('/api/v1/challenges/{id}/archive', static function (array $params): void {
+        (new ChallengeController())->archive($params);
+    });
+
+    // --- Challenge files (Phase 4) ---------------------------------------
+    $router->post('/api/v1/challenges/{id}/files', static function (array $params): void {
+        (new ChallengeFileController())->upload($params);
+    });
+
+    $router->get('/api/v1/challenges/{id}/files', static function (array $params): void {
+        (new ChallengeFileController())->listForChallenge($params);
+    });
+
+    $router->get('/api/v1/challenge-files/{id}/download', static function (array $params): void {
+        (new ChallengeFileController())->download($params);
+    });
+
+    $router->delete('/api/v1/challenge-files/{id}', static function (array $params): void {
+        (new ChallengeFileController())->delete($params);
+    });
+
+    // --- Challenge hints (Phase 4) ----------------------------------------
+    $router->post('/api/v1/challenges/{id}/hints', static function (array $params): void {
+        (new ChallengeHintController())->create($params);
+    });
+
+    $router->get('/api/v1/challenges/{id}/hints', static function (array $params): void {
+        (new ChallengeHintController())->listForChallenge($params);
+    });
+
+    $router->put('/api/v1/challenge-hints/{id}', static function (array $params): void {
+        (new ChallengeHintController())->update($params);
+    });
+
+    $router->delete('/api/v1/challenge-hints/{id}', static function (array $params): void {
+        (new ChallengeHintController())->remove($params);
+    });
+
+    $router->post('/api/v1/challenge-hints/{id}/reveal', static function (array $params): void {
+        (new ChallengeHintController())->reveal($params);
+    });
+
+    // --- Challenge flags (Phase 4, management only) ------------------------
+    $router->post('/api/v1/challenges/{id}/flag', static function (array $params): void {
+        (new FlagController())->create($params);
+    });
+
+    $router->put('/api/v1/challenges/{id}/flag', static function (array $params): void {
+        (new FlagController())->replace($params);
+    });
+
+    $router->get('/api/v1/challenges/{id}/flag', static function (array $params): void {
+        (new FlagController())->show($params);
+    });
+
+    // NOTE: GET /api/v1/challenges/{identifier} (single-segment
+    // slug-or-id lookup) is registered LAST among GET routes so the more
+    // specific multi-segment routes above (e.g. /challenges/{id}/files)
+    // are matched first -- see App\Infrastructure\Router::dispatch(),
+    // which matches in registration order.
+    $router->get('/api/v1/challenges/{identifier}', static function (array $params): void {
+        (new ChallengeController())->show($params);
     });
 };

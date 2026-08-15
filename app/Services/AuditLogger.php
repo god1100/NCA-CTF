@@ -30,6 +30,21 @@ final class AuditLogger
     public const TEAM_MEMBER_LEFT = 'TEAM_MEMBER_LEFT';
     public const CAPTAIN_TRANSFERRED = 'CAPTAIN_TRANSFERRED';
 
+    // --- Phase 4: challenge management --------------------------------
+    public const CHALLENGE_CREATED = 'CHALLENGE_CREATED';
+    public const CHALLENGE_UPDATED = 'CHALLENGE_UPDATED';
+    public const CHALLENGE_PUBLISHED = 'CHALLENGE_PUBLISHED';
+    public const CHALLENGE_PAUSED = 'CHALLENGE_PAUSED';
+    public const CHALLENGE_ARCHIVED = 'CHALLENGE_ARCHIVED';
+    public const CHALLENGE_DELETED = 'CHALLENGE_DELETED';
+    public const CHALLENGE_FILE_ADDED = 'CHALLENGE_FILE_ADDED';
+    public const CHALLENGE_FILE_REMOVED = 'CHALLENGE_FILE_REMOVED';
+    public const CHALLENGE_HINT_CREATED = 'CHALLENGE_HINT_CREATED';
+    public const CHALLENGE_HINT_UPDATED = 'CHALLENGE_HINT_UPDATED';
+    public const CHALLENGE_HINT_REMOVED = 'CHALLENGE_HINT_REMOVED';
+    public const CHALLENGE_FLAG_CREATED = 'CHALLENGE_FLAG_CREATED';
+    public const CHALLENGE_FLAG_UPDATED = 'CHALLENGE_FLAG_UPDATED';
+
     public function __construct(private readonly AuditLogRepository $repository)
     {
     }
