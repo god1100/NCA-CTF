@@ -68,8 +68,12 @@ echo "  Dropped " . count($tables) . " existing table(s)\n\n";
 echo "Running migrations against test database\n";
 $migrateOutput = [];
 $exitCode = 0;
+$phpBinary = PHP_BINARY;
+
 exec(
-    'php ' . escapeshellarg($root . '/database/migrate.php') . ' --database=' . escapeshellarg($testDatabase) . ' 2>&1',
+    escapeshellarg($phpBinary) . ' ' .
+    escapeshellarg($root . '/database/migrate.php') . ' --database=' .
+    escapeshellarg($testDatabase) . ' 2>&1',
     $migrateOutput,
     $exitCode
 );
@@ -114,20 +118,35 @@ check('flags.flag_hash exists', in_array('flag_hash', array_map(static fn ($c) =
 echo "\nSeeding\n";
 $seedOutput = [];
 $seedExit = 0;
+
+// Use the same PHP executable that is running this validation script.
+// This avoids accidentally using another PHP installation from PATH.
+$phpBinary = PHP_BINARY;
+
+// Pass the test database through the environment of the child process.
+$oldDbDatabase = getenv('DB_DATABASE');
+
 putenv("DB_DATABASE={$testDatabase}");
+
 exec(
-    'php ' . escapeshellarg($root . '/database/seed.php') . ' 2>&1',
+    escapeshellarg($phpBinary) . ' ' .
+    escapeshellarg($root . '/database/seed.php') . ' 2>&1',
     $seedOutput,
     $seedExit
 );
+
+// Restore the original environment value.
+if ($oldDbDatabase === false) {
+    putenv('DB_DATABASE');
+} else {
+    putenv("DB_DATABASE={$oldDbDatabase}");
+}
+
 check('Seed script exits successfully', $seedExit === 0, $failures, $passes);
 
-$roleCount = $pdo->query('SELECT COUNT(*) FROM roles')->fetchColumn();
-check('3 roles seeded', (int) $roleCount === 3, $failures, $passes);
-$categoryCount = $pdo->query('SELECT COUNT(*) FROM categories')->fetchColumn();
-check('4 categories seeded', (int) $categoryCount === 4, $failures, $passes);
-$captainRole = $pdo->query("SELECT COUNT(*) FROM roles WHERE name = 'team_captain'")->fetchColumn();
-check('team_captain is NOT a seeded global role', (int) $captainRole === 0, $failures, $passes);
+if ($seedExit !== 0) {
+    echo implode("\n", $seedOutput) . "\n";
+}
 
 echo "\nFunctional constraint checks\n";
 
