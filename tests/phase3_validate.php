@@ -38,8 +38,17 @@ Env::load($root . '/.env');
 
 $options = getopt('', ['database:', 'port:']);
 
-$testDatabase = $options['database']
-    ?? (Env::get('DB_DATABASE', 'nca_ctf') . '_test');
+/*
+ * Guard against accidentally deriving "..._test_test" when the
+ * configured DB_DATABASE already points at a dedicated test database.
+ */
+$configuredDatabase = Env::get('DB_DATABASE', 'nca_ctf');
+
+$defaultTestDatabase = str_ends_with($configuredDatabase, '_test')
+    ? $configuredDatabase
+    : $configuredDatabase . '_test';
+
+$testDatabase = $options['database'] ?? $defaultTestDatabase;
 
 $port = (int) ($options['port'] ?? 8124);
 
@@ -98,7 +107,7 @@ function httpRequest(
     ?string $cookieJar = null,
     array $headers = []
 ): array {
-    $curl = 'curl.exe';
+    $curl = PHP_OS_FAMILY === 'Windows' ? 'curl.exe' : 'curl';
 
     $args = [
         '-sS',
@@ -1549,6 +1558,7 @@ $p2Command =
     escapeshellarg(PHP_BINARY) .
     ' ' .
     escapeshellarg($root . '/tests/phase2_validate.php') .
+    ' --database=' . escapeshellarg($testDatabase) .
     ' 2>&1';
 
 exec(
@@ -1577,6 +1587,7 @@ $p1Command =
     escapeshellarg(PHP_BINARY) .
     ' ' .
     escapeshellarg($root . '/tests/phase1_validate.php') .
+    ' --database=' . escapeshellarg($testDatabase) .
     ' 2>&1';
 
 exec(

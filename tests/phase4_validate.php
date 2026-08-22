@@ -5,34 +5,45 @@ declare(strict_types=1);
 /**
  * NCA Batch 4 CTF — Phase 4 Challenge System Validation
  *
- * Full-stack HTTP validation for Phase 4.
+ * Windows/XAMPP-compatible validation suite.
+ *
+ * IMPORTANT:
+ * This validator does NOT spawn its own PHP server. Self-spawning a
+ * PHP development server via proc_open() from inside another PHP
+ * process is unreliable on Windows (the port can appear free at
+ * selection time and then fail to bind, producing misleading
+ * "Failed to listen" errors that look like application bugs but
+ * are actually a test-harness process-management problem). This
+ * mirrors the fix already applied to phase3_validate.php.
+ *
+ * Start the PHP development server manually before running this test:
+ *
+ *   & "C:\xampp\php\php.exe" -S 127.0.0.1:8124 -t public public/index.php
+ *
+ * Then run:
+ *
+ *   & "C:\xampp\php\php.exe" tests\phase4_validate.php --database=nca_ctf_test
+ *
+ * Options:
+ *
+ *   --port=8124                     Port of the already-running server
+ *                                    (default: 8124, same as phase3).
+ *   --base-url=http://127.0.0.1:8124  Explicit base URL override. Takes
+ *                                    precedence over --port if supplied.
+ *   --database=nca_ctf_test         Test database name.
  *
  * This validator:
  *   - Creates/resets a dedicated test database
  *   - Runs migrations and seed data
- *   - Finds a free local TCP port automatically
- *   - Starts its own PHP development server
- *   - Uses public/index.php as the router
- *   - Drives the application through real HTTP requests
+ *   - Performs a GET / health check against the already-running server
+ *     and STOPS immediately with full diagnostics if it does not pass,
+ *     instead of running dozens of misleading downstream failures
+ *   - Drives the application through real HTTP requests (curl)
  *   - Tests authentication, authorization, CRUD, lifecycle,
  *     visibility, filtering, pagination, files, hints, flags,
  *     IDOR, CSRF and audit logging
- *   - Runs Phase 3 regression validation at the end
- *
- * Run:
- *
- *   php tests/phase4_validate.php
- *
- * Windows:
- *
- *   & "C:\xampp\php\php.exe" tests\phase4_validate.php
- *
- * IMPORTANT:
- *   Do NOT manually run:
- *
- *   php -S 127.0.0.1:8124 -t public
- *
- *   The validator starts and stops its own server.
+ *   - Runs Phase 3 regression validation at the end, against the
+ *     same already-running server
  */
 
 $root = dirname(__DIR__);
@@ -56,15 +67,29 @@ Env::load($root . '/.env');
 $options = getopt('', [
     'database:',
     'port:',
+    'base-url:',
 ]);
 
-$testDatabase = $options['database'] ?? 'nca_ctf_test';
+/*
+ * Guard against accidentally deriving "..._test_test" when the
+ * configured DB_DATABASE already points at a dedicated test
+ * database (this has bitten local Windows setups before).
+ */
+$configuredDatabase = Env::get('DB_DATABASE', 'nca_ctf');
 
-$requestedPort = isset($options['port'])
-    ? (int) $options['port']
-    : 0;
+$defaultTestDatabase = str_ends_with($configuredDatabase, '_test')
+    ? $configuredDatabase
+    : $configuredDatabase . '_test';
+
+$testDatabase = $options['database'] ?? $defaultTestDatabase;
 
 $host = '127.0.0.1';
+
+$port = (int) ($options['port'] ?? 8124);
+
+$baseUrl = isset($options['base-url'])
+    ? rtrim((string) $options['base-url'], '/')
+    : "http://{$host}:{$port}";
 
 $phpBinary = PHP_BINARY;
 
@@ -107,12 +132,6 @@ $superCookieJar = $tempDir
     . DIRECTORY_SEPARATOR
     . 'phase4_super_cookies.txt';
 
-$serverProcess = null;
-$serverPipes = [];
-
-$port = 0;
-$baseUrl = '';
-
 $failures = [];
 $passes = 0;
 
@@ -135,91 +154,6 @@ function check(
         echo "  [FAIL] {$label}\n";
         $failures[] = $label;
     }
-}
-
-/**
- * Find an unused local TCP port.
- */
-function findFreePort(string $host = '127.0.0.1'): int
-{
-    $socket = @stream_socket_server(
-        "tcp://{$host}:0",
-        $errno,
-        $errstr
-    );
-
-    if ($socket === false) {
-        throw new RuntimeException(
-            "Could not find a free TCP port: {$errstr} ({$errno})"
-        );
-    }
-
-    $name = stream_socket_get_name($socket, false);
-
-    fclose($socket);
-
-    if ($name === false) {
-        throw new RuntimeException('Could not determine assigned TCP port.');
-    }
-
-    $parts = explode(':', $name);
-
-    $port = (int) end($parts);
-
-    if ($port <= 0) {
-        throw new RuntimeException('Invalid dynamically assigned TCP port.');
-    }
-
-    return $port;
-}
-
-/**
- * Check whether the PHP HTTP server is reachable.
- */
-function serverIsReady(
-    string $host,
-    int $port,
-    int $timeoutMilliseconds = 500
-): bool {
-    $errno = 0;
-    $errstr = '';
-
-    $socket = @fsockopen(
-        $host,
-        $port,
-        $errno,
-        $errstr,
-        $timeoutMilliseconds / 1000
-    );
-
-    if ($socket === false) {
-        return false;
-    }
-
-    fclose($socket);
-
-    return true;
-}
-
-/**
- * Wait until the server is actually listening.
- */
-function waitForServer(
-    string $host,
-    int $port,
-    int $timeoutSeconds = 10
-): bool {
-    $deadline = microtime(true) + $timeoutSeconds;
-
-    while (microtime(true) < $deadline) {
-        if (serverIsReady($host, $port)) {
-            return true;
-        }
-
-        usleep(100000);
-    }
-
-    return false;
 }
 
 /**
@@ -265,7 +199,63 @@ function removeFile(string $path): void
 }
 
 /**
- * Perform a real HTTP request using curl.
+ * Run a curl.exe command via proc_open() with an argument array.
+ *
+ * This is the Windows-reliable transport already proven in
+ * phase3_validate.php. It intentionally avoids shell_exec() +
+ * escapeshellarg(), because Windows' cmd.exe quoting rules for
+ * escapeshellarg() are inconsistent (particularly with JSON bodies
+ * containing quotes/backslashes) and can silently corrupt requests
+ * or spawn nothing at all.
+ */
+function curlBinaryName(): string
+{
+    return PHP_OS_FAMILY === 'Windows' ? 'curl.exe' : 'curl';
+}
+
+function runCurl(array $args): array
+{
+    $command = array_merge([curlBinaryName()], $args);
+
+    $descriptorSpec = [
+        0 => ['pipe', 'r'],
+        1 => ['pipe', 'w'],
+        2 => ['pipe', 'w'],
+    ];
+
+    $process = proc_open(
+        $command,
+        $descriptorSpec,
+        $pipes
+    );
+
+    if (!is_resource($process)) {
+        return [
+            'exit_code' => -1,
+            'stdout' => '',
+            'stderr' => 'Unable to start curl.exe',
+        ];
+    }
+
+    fclose($pipes[0]);
+
+    $stdout = stream_get_contents($pipes[1]);
+    $stderr = stream_get_contents($pipes[2]);
+
+    fclose($pipes[1]);
+    fclose($pipes[2]);
+
+    $exitCode = proc_close($process);
+
+    return [
+        'exit_code' => $exitCode,
+        'stdout' => $stdout !== false ? $stdout : '',
+        'stderr' => $stderr !== false ? $stderr : '',
+    ];
+}
+
+/**
+ * Perform a real HTTP request using curl.exe.
  */
 function httpRequest(
     string $method,
@@ -274,28 +264,26 @@ function httpRequest(
     ?string $cookieJar = null,
     array $headers = []
 ): array {
-    $cmd = [
-        'curl',
-        '--silent',
-        '--show-error',
-        '--include',
+    $args = [
+        '-sS',
+        '-i',
         '--max-time',
         '15',
         '--connect-timeout',
         '5',
-        '--request',
+        '-X',
         $method,
     ];
 
     foreach ($headers as $header) {
-        $cmd[] = '--header';
-        $cmd[] = $header;
+        $args[] = '-H';
+        $args[] = $header;
     }
 
     if ($jsonBody !== null) {
         $encoded = json_encode(
             $jsonBody,
-            JSON_UNESCAPED_SLASHES
+            JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
         );
 
         if ($encoded === false) {
@@ -304,31 +292,38 @@ function httpRequest(
             );
         }
 
-        $cmd[] = '--header';
-        $cmd[] = 'Content-Type: application/json';
+        $args[] = '-H';
+        $args[] = 'Content-Type: application/json';
 
-        $cmd[] = '--data';
-        $cmd[] = $encoded;
+        $args[] = '--data-raw';
+        $args[] = $encoded;
     }
 
     if ($cookieJar !== null) {
-        $cmd[] = '--cookie-jar';
-        $cmd[] = $cookieJar;
+        $cookieDirectory = dirname($cookieJar);
 
-        $cmd[] = '--cookie';
-        $cmd[] = $cookieJar;
+        if (!is_dir($cookieDirectory)) {
+            mkdir($cookieDirectory, 0777, true);
+        }
+
+        $args[] = '-c';
+        $args[] = $cookieJar;
+
+        $args[] = '-b';
+        $args[] = $cookieJar;
     }
 
-    $cmd[] = $url;
+    /*
+     * Force IPv4 on Windows to avoid occasional ::1 vs 127.0.0.1
+     * mismatches against PHP's built-in server.
+     */
+    $args[] = '-4';
 
-    $escaped = implode(
-        ' ',
-        array_map('escapeshellarg', $cmd)
-    );
+    $args[] = $url;
 
-    $raw = shell_exec($escaped);
+    $result = runCurl($args);
 
-    $raw = $raw ?? '';
+    $raw = $result['stdout'];
 
     /*
      * curl may include multiple header blocks, for example
@@ -346,6 +341,19 @@ function httpRequest(
         $offset = $position + 4;
     }
 
+    if ($separatorPositions === []) {
+        $offset = 0;
+
+        while (($position = strpos($raw, "\n\n", $offset)) !== false) {
+            $separatorPositions[] = $position;
+            $offset = $position + 2;
+        }
+
+        $separatorLength = 2;
+    } else {
+        $separatorLength = 4;
+    }
+
     if ($separatorPositions !== []) {
         $lastSeparator = end($separatorPositions);
 
@@ -357,20 +365,21 @@ function httpRequest(
 
         $bodyPart = substr(
             $raw,
-            $lastSeparator + 4
+            $lastSeparator + $separatorLength
         );
     }
 
     $status = 0;
 
     if (
-        preg_match(
-            '/HTTP\/\d(?:\.\d)?\s+(\d{3})/s',
+        preg_match_all(
+            '/HTTP\/\d(?:\.\d)?\s+(\d{3})/i',
             $headerPart,
             $matches
         )
     ) {
-        $status = (int) $matches[1];
+        $lastIndex = count($matches[1]) - 1;
+        $status = (int) $matches[1][$lastIndex];
     }
 
     $decoded = json_decode(
@@ -383,6 +392,8 @@ function httpRequest(
         'body' => is_array($decoded) ? $decoded : [],
         'raw' => $bodyPart,
         'header' => $headerPart,
+        'curl_exit_code' => $result['exit_code'],
+        'curl_stderr' => $result['stderr'],
     ];
 }
 
@@ -395,65 +406,68 @@ function uploadFile(
     ?string $cookieJar,
     array $headers
 ): array {
-    $cmd = [
-        'curl',
-        '--silent',
-        '--show-error',
-        '--include',
+    $args = [
+        '-sS',
+        '-i',
         '--max-time',
         '20',
         '--connect-timeout',
         '5',
-        '--request',
+        '-X',
         'POST',
     ];
 
     foreach ($headers as $header) {
-        $cmd[] = '--header';
-        $cmd[] = $header;
+        $args[] = '-H';
+        $args[] = $header;
     }
 
     if ($cookieJar !== null) {
-        $cmd[] = '--cookie-jar';
-        $cmd[] = $cookieJar;
+        $args[] = '-c';
+        $args[] = $cookieJar;
 
-        $cmd[] = '--cookie';
-        $cmd[] = $cookieJar;
+        $args[] = '-b';
+        $args[] = $cookieJar;
     }
 
-    $cmd[] = '--form';
-    $cmd[] = 'file=@' . $filePath;
+    $args[] = '-F';
+    $args[] = 'file=@' . $filePath;
 
-    $cmd[] = $url;
+    $args[] = '-4';
 
-    $escaped = implode(
-        ' ',
-        array_map('escapeshellarg', $cmd)
-    );
+    $args[] = $url;
 
-    $raw = shell_exec($escaped);
+    $result = runCurl($args);
 
-    $raw = $raw ?? '';
+    $raw = $result['stdout'];
 
-    $parts = explode(
-        "\r\n\r\n",
-        $raw,
-        2
-    );
+    $headerPart = '';
+    $bodyPart = $raw;
 
-    $headerPart = $parts[0] ?? '';
-    $bodyPart = $parts[1] ?? '';
+    $lastSeparator = strrpos($raw, "\r\n\r\n");
+    $separatorLength = 4;
+
+    if ($lastSeparator === false) {
+        $lastSeparator = strrpos($raw, "\n\n");
+        $separatorLength = 2;
+    }
+
+    if ($lastSeparator !== false) {
+        $headerPart = substr($raw, 0, $lastSeparator);
+        $bodyPart = substr($raw, $lastSeparator + $separatorLength);
+    }
 
     $status = 0;
 
     if (
-        preg_match(
-            '/HTTP\/\d(?:\.\d)?\s+(\d{3})/',
+        preg_match_all(
+            '/HTTP\/\d(?:\.\d)?\s+(\d{3})/i',
             $headerPart,
             $matches
         )
     ) {
-        $status = (int) $matches[1];
+        $lastIndex = count($matches[1]) - 1;
+        $status = (int) $matches[1][$lastIndex];
     }
 
     $decoded = json_decode(
@@ -466,6 +480,8 @@ function uploadFile(
         'body' => is_array($decoded) ? $decoded : [],
         'raw' => $bodyPart,
         'header' => $headerPart,
+        'curl_exit_code' => $result['exit_code'],
+        'curl_stderr' => $result['stderr'],
     ];
 }
 
@@ -537,6 +553,7 @@ function debugResponse(
 */
 
 echo "NCA Batch 4 CTF — Phase 4 Challenge System Validation\n";
+echo "Target base URL: {$baseUrl}\n";
 echo "Target test database: {$testDatabase}\n";
 echo "PHP binary: {$phpBinary}\n";
 echo "Temporary directory: {$tempDir}\n";
@@ -548,20 +565,92 @@ echo str_repeat('=', 55) . "\n\n";
 |--------------------------------------------------------------------------
 */
 
-exec(
-    'curl --version',
-    $curlOutput,
-    $curlCode
-);
+$curlVersionResult = runCurl(['--version']);
 
-if ($curlCode !== 0) {
+if ($curlVersionResult['exit_code'] !== 0) {
     fwrite(
         STDERR,
-        "ERROR: curl is not available on PATH.\n"
+        "ERROR: curl.exe is not available on PATH.\n"
+        . "stderr: " . $curlVersionResult['stderr'] . "\n"
     );
 
     exit(1);
 }
+
+/*
+|--------------------------------------------------------------------------
+| Mandatory health check
+|--------------------------------------------------------------------------
+|
+| This validator does NOT start its own server. If the server is not
+| already running at $baseUrl, EVERY downstream test would fail in a
+| way that looks like broken application code but is really just
+| "nothing is listening". We refuse to proceed until this passes, and
+| print exact diagnostics so the real cause is obvious immediately.
+*/
+
+echo "Checking server health at {$baseUrl}/ ...\n";
+
+$healthCheckAttempts = 0;
+$healthCheckMaxAttempts = 5;
+$healthCheckPassed = false;
+$lastHealthResponse = null;
+
+while ($healthCheckAttempts < $healthCheckMaxAttempts) {
+    $healthCheckAttempts++;
+
+    $lastHealthResponse = httpRequest('GET', "{$baseUrl}/");
+
+    if (
+        $lastHealthResponse['status'] >= 200
+        && $lastHealthResponse['status'] < 500
+    ) {
+        $healthCheckPassed = true;
+        break;
+    }
+
+    usleep(500000);
+}
+
+if (!$healthCheckPassed) {
+    fwrite(STDERR, "\n" . str_repeat('=', 55) . "\n");
+    fwrite(STDERR, "ERROR: Health check failed. No working server was\n");
+    fwrite(STDERR, "found at {$baseUrl}/ after {$healthCheckAttempts} attempt(s).\n\n");
+    fwrite(STDERR, "This validator does NOT start its own server.\n");
+    fwrite(STDERR, "Start it manually first, in a separate terminal:\n\n");
+    fwrite(
+        STDERR,
+        "  \"" . $phpBinary . "\" -S {$host}:{$port} -t "
+        . $root . DIRECTORY_SEPARATOR . "public "
+        . $root . DIRECTORY_SEPARATOR . "public" . DIRECTORY_SEPARATOR . "index.php\n\n"
+    );
+    fwrite(STDERR, "Diagnostics:\n");
+    fwrite(STDERR, "  Base URL:        {$baseUrl}\n");
+    fwrite(STDERR, "  Host:            {$host}\n");
+    fwrite(STDERR, "  Port:            {$port}\n");
+    fwrite(STDERR, "  PHP binary:      {$phpBinary}\n");
+    fwrite(STDERR, "  Attempts made:   {$healthCheckAttempts}\n");
+
+    if ($lastHealthResponse !== null) {
+        fwrite(STDERR, "  Last HTTP status: {$lastHealthResponse['status']}\n");
+        fwrite(STDERR, "  curl exit code:    " . ($lastHealthResponse['curl_exit_code'] ?? 'n/a') . "\n");
+
+        if (!empty($lastHealthResponse['curl_stderr'])) {
+            fwrite(STDERR, "  curl stderr:       " . trim($lastHealthResponse['curl_stderr']) . "\n");
+        }
+
+        if ($lastHealthResponse['raw'] !== '') {
+            fwrite(STDERR, "  Last response body:\n");
+            fwrite(STDERR, "    " . trim($lastHealthResponse['raw']) . "\n");
+        }
+    }
+
+    fwrite(STDERR, str_repeat('=', 55) . "\n");
+
+    exit(1);
+}
+
+echo "Server is reachable at {$baseUrl}/ (HTTP {$lastHealthResponse['status']}).\n\n";
 
 /*
 |--------------------------------------------------------------------------
@@ -721,171 +810,17 @@ if (!is_dir($uploadTestDir)) {
 
 /*
 |--------------------------------------------------------------------------
-| Find a free HTTP port
+| Server readiness
 |--------------------------------------------------------------------------
+|
+| No server is spawned here. The health check performed earlier already
+| confirmed a working server is listening at $baseUrl and using
+| public/index.php as its router (otherwise GET / would not have
+| returned a 2xx/3xx/4xx response). It is the operator's responsibility
+| to point that already-running server's environment at $testDatabase
+| (see the docblock at the top of this file), exactly as required by
+| phase3_validate.php and phase2_validate.php.
 */
-
-try {
-    if ($requestedPort > 0) {
-        if (serverIsReady($host, $requestedPort)) {
-            echo "Requested port {$requestedPort} is already in use.\n";
-            echo "Finding another free port automatically...\n";
-
-            $port = findFreePort($host);
-        } else {
-            $port = $requestedPort;
-        }
-    } else {
-        $port = findFreePort($host);
-    }
-} catch (\Throwable $e) {
-    fwrite(
-        STDERR,
-        "Could not select HTTP port: "
-        . $e->getMessage()
-        . "\n"
-    );
-
-    exit(1);
-}
-
-$baseUrl = "http://{$host}:{$port}";
-
-echo "Selected free HTTP port: {$port}\n";
-
-/*
-|--------------------------------------------------------------------------
-| Clean old logs
-|--------------------------------------------------------------------------
-*/
-
-removeFile($serverLog);
-removeFile($serverErrorLog);
-
-/*
-|--------------------------------------------------------------------------
-| Start isolated PHP development server
-|--------------------------------------------------------------------------
-*/
-
-echo "Starting test HTTP server on {$baseUrl}\n";
-
-$serverEnv = [
-    'DB_HOST' => Env::get(
-        'DB_HOST',
-        '127.0.0.1'
-    ),
-
-    'DB_PORT' => Env::get(
-        'DB_PORT',
-        '3306'
-    ),
-
-    'DB_DATABASE' => $testDatabase,
-
-    'DB_USERNAME' => Env::get(
-        'DB_USERNAME',
-        'nca_ctf_app'
-    ),
-
-    'DB_PASSWORD' => Env::get(
-        'DB_PASSWORD',
-        ''
-    ),
-
-    'DB_CHARSET' => Env::get(
-        'DB_CHARSET',
-        'utf8mb4'
-    ),
-
-    'APP_SECRET' => Env::get(
-        'APP_SECRET',
-        'test-secret-for-phase4-validation'
-    ),
-
-    'APP_ENV' => 'local',
-
-    'AUTH_RATE_LIMIT_MAX_ATTEMPTS' => '1000',
-
-    'AUTH_RATE_LIMIT_WINDOW_SECONDS' => '60',
-
-    'TEAM_INVITATION_TTL_HOURS' => '72',
-
-    'CHALLENGE_FILE_MAX_SIZE_MB' => '50',
-
-    'TEMP' => $tempBase,
-    'TMP' => $tempBase,
-
-    'PATH' => getenv('PATH')
-        ?: 'C:\\Windows\\System32;C:\\Windows',
-];
-
-/*
- * IMPORTANT:
- *
- * The last argument is public/index.php.
- *
- * This makes PHP's built-in server use index.php as the router
- * instead of trying to locate /api/v1/... as a physical file.
- */
-$serverCommand = [
-    $phpBinary,
-    '-S',
-    "{$host}:{$port}",
-    '-t',
-    $root . '/public',
-    $root . '/public/index.php',
-];
-
-$descriptors = [
-    0 => ['pipe', 'r'],
-    1 => ['file', $serverLog, 'ab'],
-    2 => ['file', $serverErrorLog, 'ab'],
-];
-
-$serverProcess = proc_open(
-    $serverCommand,
-    $descriptors,
-    $serverPipes,
-    $root,
-    $serverEnv
-);
-
-if (!is_resource($serverProcess)) {
-    fwrite(
-        STDERR,
-        "Failed to start test HTTP server.\n"
-    );
-
-    exit(1);
-}
-
-/*
-|--------------------------------------------------------------------------
-| Wait for server startup
-|--------------------------------------------------------------------------
-*/
-
-if (!waitForServer($host, $port, 10)) {
-    echo "\nERROR: Test HTTP server did not start.\n";
-
-    echo "\nServer stdout/stderr log:\n";
-
-    if (is_file($serverLog)) {
-        echo file_get_contents($serverLog) . "\n";
-    }
-
-    if (is_file($serverErrorLog)) {
-        echo file_get_contents($serverErrorLog) . "\n";
-    }
-
-    proc_terminate($serverProcess);
-    proc_close($serverProcess);
-
-    exit(1);
-}
-
-echo "Test HTTP server is ready.\n\n";
 
 /*
 |--------------------------------------------------------------------------
@@ -2069,38 +2004,12 @@ try {
 } finally {
 
     /*
-    |--------------------------------------------------------------------------
-    | Stop our own server
-    |--------------------------------------------------------------------------
-    */
-
-    if (is_resource($serverProcess)) {
-
-        @proc_terminate(
-            $serverProcess
-        );
-
-        /*
-         * Give the process a moment to terminate.
-         */
-        usleep(250000);
-
-        @proc_close(
-            $serverProcess
-        );
-    }
-
-    /*
-     * Close pipes.
-     */
-    foreach ($serverPipes as $pipe) {
-        if (is_resource($pipe)) {
-            @fclose($pipe);
-        }
-    }
-
-    /*
      * Clean temporary test file.
+     *
+     * Note: no server process to terminate here — this validator
+     * never spawns one. The externally-started server (which the
+     * operator launched manually per the docblock instructions)
+     * is left running.
      */
     removeFile($testFilePath);
 }
@@ -2119,6 +2028,8 @@ $p3Command =
     escapeshellarg($phpBinary)
     . ' '
     . escapeshellarg($root . '/tests/phase3_validate.php')
+    . ' --database=' . escapeshellarg($testDatabase)
+    . ' --port=' . escapeshellarg((string) $port)
     . ' 2>&1';
 
 exec(

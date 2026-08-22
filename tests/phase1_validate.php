@@ -28,7 +28,18 @@ use App\Infrastructure\Env;
 Env::load($root . '/.env');
 
 $options = getopt('', ['database:']);
-$testDatabase = $options['database'] ?? (Env::get('DB_DATABASE', 'nca_ctf') . '_test');
+
+/*
+ * Guard against accidentally deriving "..._test_test" when the
+ * configured DB_DATABASE already points at a dedicated test database.
+ */
+$configuredDatabase = Env::get('DB_DATABASE', 'nca_ctf');
+
+$defaultTestDatabase = str_ends_with($configuredDatabase, '_test')
+    ? $configuredDatabase
+    : $configuredDatabase . '_test';
+
+$testDatabase = $options['database'] ?? $defaultTestDatabase;
 
 $failures = [];
 $passes = 0;
