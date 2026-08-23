@@ -15,6 +15,7 @@ $baseUrl = $GLOBALS['baseUrl'] ?? '';
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
     <script>
+        // This makes the base URL available to all JavaScript
         window.NCA_CTF_BASE_URL = '<?= $baseUrl ?>';
     </script>
 
@@ -22,37 +23,8 @@ $baseUrl = $GLOBALS['baseUrl'] ?? '';
     <link rel="stylesheet" href="<?= $baseUrl ?>/assets/css/home.css">
 </head>
 <body>
-    <!-- ============================================================== -->
-    <!-- NAVIGATION                                                     -->
-    <!-- ============================================================== -->
-    <nav class="navbar" role="navigation" aria-label="Main navigation">
-        <div class="navbar__container">
-            <div class="navbar__brand">
-                <a href="<?= $baseUrl ?>/" class="navbar__logo-link">
-                    <img src="<?= $baseUrl ?>/assets/images/NCA-logo.jpg" alt="NCA CTF" class="navbar__logo" width="40" height="40">
-                    <span class="navbar__brand-text">NCA <span class="brand__ctf">CTF</span></span>
-                </a>
-            </div>
 
-            <button class="navbar__toggle" id="navToggle" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar__toggle-icon"></span>
-                <span class="navbar__toggle-icon"></span>
-                <span class="navbar__toggle-icon"></span>
-            </button>
-
-            <div class="navbar__menu" id="navMenu">
-                <ul class="navbar__links">
-                    <li><a href="<?= $baseUrl ?>/" class="active">Home</a></li>
-                    <li><a href="<?= $baseUrl ?>/challenges.php">Challenges</a></li>
-                    <li><a href="<?= $baseUrl ?>/about.php">About Us</a></li>
-                </ul>
-                <div class="navbar__actions" id="navActions">
-                    <a href="<?= $baseUrl ?>/login.php" class="btn btn--secondary">Login</a>
-                    <a href="<?= $baseUrl ?>/register.php" class="btn btn--primary">Register</a>
-                </div>
-            </div>
-        </div>
-    </nav>
+    <?php include __DIR__ . '/components/header.php'; ?>
 
     <!-- ============================================================== -->
     <!-- HERO SECTION                                                   -->
@@ -148,27 +120,8 @@ $baseUrl = $GLOBALS['baseUrl'] ?? '';
         </div>
     </section>
 
-    <!-- ============================================================== -->
-    <!-- FOOTER                                                         -->
-    <!-- ============================================================== -->
-    <footer class="footer">
-        <div class="container footer__container">
-            <div class="footer__brand">
-                <img src="<?= $baseUrl ?>/assets/images/NCA-logo.jpg" alt="NCA CTF" width="28" height="28">
-                <span class="footer__brand-text">NCA <span class="brand__ctf">CTF</span></span>
-                <span class="footer__tagline">| Batch 4</span>
-            </div>
-            <div class="footer__links">
-                <a href="<?= $baseUrl ?>/">Home</a>
-                <a href="<?= $baseUrl ?>/challenges.php">Challenges</a>
-                <a href="<?= $baseUrl ?>/about.php">About</a>
-                <a href="<?= $baseUrl ?>/register.php">Join</a>
-            </div>
-            <div class="footer__copyright">
-                &copy; 2026 <strong>NCA@Nepal</strong>
-            </div>
-        </div>
-    </footer>
+
+     <?php include __DIR__ . '/components/footer.php'; ?>
 
     <script src="<?= $baseUrl ?>/assets/js/home.js"></script>
 </body>

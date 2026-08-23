@@ -35,7 +35,9 @@ $baseUrl = $GLOBALS['baseUrl'] ?? '/NCA-CTF/public';
 
             <form id="registerForm" novalidate>
                 <div class="form-group">
-                    <label for="username">Username</label>
+                    <label for="username">
+                        Username <span class="required-star">*</span>
+                    </label>
                     <input
                         type="text"
                         id="username"
@@ -49,7 +51,9 @@ $baseUrl = $GLOBALS['baseUrl'] ?? '/NCA-CTF/public';
                 </div>
 
                 <div class="form-group">
-                    <label for="email">Email Address</label>
+                    <label for="email">
+                        Email Address <span class="required-star">*</span>
+                    </label>
                     <input
                         type="email"
                         id="email"
@@ -74,13 +78,15 @@ $baseUrl = $GLOBALS['baseUrl'] ?? '/NCA-CTF/public';
                 </div>
 
                 <div class="form-group">
-                    <label for="password">Password</label>
+                    <label for="password">
+                        Password <span class="required-star">*</span>
+                    </label>
                     <div class="password-wrapper">
                         <input
                             type="password"
                             id="password"
                             name="password"
-                            placeholder="Min 10 characters"
+                            placeholder="Min 6 characters"
                             required
                             autocomplete="new-password"
                         >
@@ -94,11 +100,13 @@ $baseUrl = $GLOBALS['baseUrl'] ?? '/NCA-CTF/public';
                         </button>
                     </div>
                     <span class="error-message" id="passwordError"></span>
-                    <small class="hint-text">Must be at least 10 characters with a letter and number</small>
+                    <small class="hint-text">Must be at least 6 characters</small>
                 </div>
 
                 <div class="form-group">
-                    <label for="password_confirm">Confirm Password</label>
+                    <label for="password_confirm">
+                        Confirm Password <span class="required-star">*</span>
+                    </label>
                     <div class="password-wrapper">
                         <input
                             type="password"

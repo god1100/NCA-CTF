@@ -15,8 +15,9 @@ $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
 $basePath = rtrim(dirname($scriptName), '/\\');
 $baseUrl = $protocol . $host . $basePath;
 
-// Make baseUrl available globally for views
+// Make baseUrl available globally for views AND for the rest of the app
 $GLOBALS['baseUrl'] = $baseUrl;
+define('BASE_URL', $baseUrl);  // Also define it as a constant
 
 // --- Autoloading -----------------------------------------------------
 if (is_file($baseDir . '/vendor/autoload.php')) {
@@ -74,13 +75,14 @@ switch ($uri) {
         require $baseDir . '/resources/views/challenges.php';
         exit;
     case '/login':
-        require $baseDir . '/public/login.php';
+        // Redirect to the actual login.php file
+        header('Location: ' . $baseUrl . '/login.php');
         exit;
     case '/register':
-        require $baseDir . '/public/register.php';
+        header('Location: ' . $baseUrl . '/register.php');
         exit;
     case '/about':
-        require $baseDir . '/public/about.php';
+        header('Location: ' . $baseUrl . '/about.php');
         exit;
     case '/dashboard':
         Session::start();

@@ -1,5 +1,6 @@
 <?php
 $baseUrl = $GLOBALS['baseUrl'] ?? '/NCA-CTF/public';
+$from = isset($_GET['from']) ? $_GET['from'] : '/';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -16,6 +17,7 @@ $baseUrl = $GLOBALS['baseUrl'] ?? '/NCA-CTF/public';
 
     <script>
         window.NCA_CTF_BASE_URL = '<?= $baseUrl ?>';
+        window.NCA_CTF_REDIRECT = '<?= htmlspecialchars($from) ?>';
     </script>
 
     <link rel="stylesheet" href="<?= $baseUrl ?>/assets/css/style.css">
@@ -35,7 +37,9 @@ $baseUrl = $GLOBALS['baseUrl'] ?? '/NCA-CTF/public';
 
             <form id="loginForm" novalidate>
                 <div class="form-group">
-                    <label for="identifier">Username or Email</label>
+                    <label for="identifier">
+                        Username or Email <span class="required-star">*</span>
+                    </label>
                     <input
                         type="text"
                         id="identifier"
@@ -49,7 +53,9 @@ $baseUrl = $GLOBALS['baseUrl'] ?? '/NCA-CTF/public';
                 </div>
 
                 <div class="form-group">
-                    <label for="password">Password</label>
+                    <label for="password">
+                        Password <span class="required-star">*</span>
+                    </label>
                     <div class="password-wrapper">
                         <input
                             type="password"
