@@ -114,12 +114,37 @@
             });
 
             if (result.ok && result.success) {
-                // CSRF token is automatically saved by api.js
                 showMessage('Login successful! Redirecting...', 'success');
 
+                // Get user role from result or fetch separately
+                var userRole = null;
+                if (result.user && result.user.role) {
+                    userRole = result.user.role;
+                } else {
+                    try {
+                        var meResponse = await fetch('/NCA-CTF/public/api/v1/auth/me', {
+                            method: 'GET',
+                            credentials: 'include',
+                            headers: { 'Accept': 'application/json' }
+                        });
+                        if (meResponse.ok) {
+                            var meData = await meResponse.json();
+                            if (meData.authenticated && meData.user) {
+                                userRole = meData.user.role;
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Could not fetch user role:', e);
+                    }
+                }
+
                 setTimeout(function () {
-                    // Redirect to dashboard route (not .php file)
-                   window.location.href = BASE_URL + '/dashboard.php';
+                    // Redirect based on role
+                    if (userRole === 'challenge_admin' || userRole === 'super_admin') {
+                        window.location.href = '/NCA-CTF/public/admin/index.php';
+                    } else {
+                        window.location.href = '/NCA-CTF/public/dashboard.php';
+                    }
                 }, 800);
 
             } else if (result.status === 401) {
