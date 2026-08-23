@@ -1,0 +1,194 @@
+/* ================================================================
+   Login Page – Minimal Functional Styling
+   Will be completely redesigned later – keep it simple.
+   ================================================================ */
+
+/* ----- Reset / Base overrides ----- */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--color-bg, #0b0f14);
+    color: var(--color-text-primary, #f0f4fa);
+    font-family: var(--font-ui, 'Inter', system-ui, sans-serif);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ----- Container ----- */
+.login-container {
+    width: 100%;
+    max-width: 400px;
+    padding: 1.5rem;
+}
+
+.login-card {
+    background: var(--color-surface, #151c24);
+    border: 1px solid var(--color-border, #2a3a48);
+    border-radius: var(--radius, 10px);
+    padding: 2rem;
+}
+
+/* ----- Header ----- */
+.login-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.login-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    color: var(--color-text-primary, #f0f4fa);
+    font-weight: 700;
+    font-size: 1.2rem;
+    margin-bottom: 0.5rem;
+}
+
+.login-logo img {
+    border-radius: 4px;
+}
+
+.login-header h1 {
+    font-size: 1.5rem;
+    margin: 0.5rem 0 0.25rem 0;
+    font-weight: 700;
+}
+
+.login-sub {
+    color: var(--color-text-secondary, #a0b3cc);
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+/* ----- Form ----- */
+.form-group {
+    margin-bottom: 1.2rem;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 500;
+    font-size: 0.9rem;
+    margin-bottom: 0.3rem;
+    color: var(--color-text-secondary, #a0b3cc);
+}
+
+.form-group input {
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    background: var(--color-bg, #0b0f14);
+    border: 1px solid var(--color-border, #2a3a48);
+    border-radius: var(--radius-sm, 6px);
+    color: var(--color-text-primary, #f0f4fa);
+    font-size: 0.95rem;
+    font-family: inherit;
+    transition: border-color 0.2s;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: var(--color-accent, #00b8d4);
+}
+
+.form-group input.error {
+    border-color: var(--color-danger, #ef5350);
+}
+
+/* Password toggle */
+.password-wrapper {
+    position: relative;
+}
+
+.password-wrapper input {
+    padding-right: 2.8rem;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 0.6rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.3rem;
+    font-size: 1.1rem;
+    color: var(--color-text-muted, #6b7f8f);
+    line-height: 1;
+}
+
+.toggle-password:hover {
+    color: var(--color-text-primary, #f0f4fa);
+}
+
+/* Error messages */
+.error-message {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--color-danger, #ef5350);
+    min-height: 1.2em;
+    margin-top: 0.2rem;
+}
+
+/* Form message (global) */
+.form-message {
+    padding: 0.6rem 0.8rem;
+    border-radius: var(--radius-sm, 6px);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+    display: none;
+}
+
+.form-message.visible {
+    display: block;
+}
+
+.form-message.error {
+    background: rgba(239, 83, 80, 0.12);
+    border: 1px solid var(--color-danger, #ef5350);
+    color: var(--color-danger, #ef5350);
+}
+
+.form-message.success {
+    background: rgba(0, 184, 212, 0.12);
+    border: 1px solid var(--color-accent, #00b8d4);
+    color: var(--color-accent, #00b8d4);
+}
+
+/* Button */
+.btn--full {
+    width: 100%;
+    padding: 0.7rem;
+    font-size: 1rem;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+/* Footer */
+.login-footer {
+    text-align: center;
+    font-size: 0.9rem;
+    color: var(--color-text-secondary, #a0b3cc);
+    margin-top: 1.2rem;
+    margin-bottom: 0;
+}
+
+.login-footer a {
+    color: var(--color-accent, #00b8d4);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.login-footer a:hover {
+    text-decoration: underline;
+}
