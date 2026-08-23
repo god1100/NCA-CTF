@@ -10,18 +10,23 @@ import { Input } from '../components/ui/Input'
 import { Spinner } from '../components/ui/Spinner'
 import { ErrorState } from '../components/ui/ErrorState'
 import { Alert } from '../components/ui/Alert'
-import { Users, Plus } from 'lucide-react'
+import { Users, Plus, LogIn } from 'lucide-react'
 
 export function TeamPage() {
   const {
     teamInfo, members, invitations, isLoading, error, refetch,
     createTeam, leaveTeam, removeMember, transferCaptain, createInvitation,
-    acceptInvitation, rejectInvitation,
+    acceptInvitation,
   } = useTeam()
 
   const [newTeamName, setNewTeamName] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
+
+  const [inviteToken, setInviteToken] = useState('')
+  const [isAccepting, setIsAccepting] = useState(false)
+  const [acceptError, setAcceptError] = useState<string | null>(null)
+  const [acceptSuccess, setAcceptSuccess] = useState<string | null>(null)
 
   const handleCreate = async () => {
     if (!newTeamName.trim()) return
@@ -33,6 +38,20 @@ export function TeamPage() {
       setCreateError(err instanceof Error ? err.message : 'Failed to create team')
     } finally {
       setIsCreating(false)
+    }
+  }
+
+  const handleAcceptToken = async () => {
+    if (!inviteToken.trim()) return
+    setIsAccepting(true); setAcceptError(null); setAcceptSuccess(null)
+    try {
+      await acceptInvitation(inviteToken.trim())
+      setAcceptSuccess('Invitation accepted! You have joined the team.')
+      setInviteToken('')
+    } catch (err) {
+      setAcceptError(err instanceof Error ? err.message : 'Failed to accept invitation')
+    } finally {
+      setIsAccepting(false)
     }
   }
 
@@ -58,12 +77,24 @@ export function TeamPage() {
           <h1 className="text-xl font-bold text-nca-text">No Team</h1>
           <p className="text-sm text-nca-text-muted mt-1">You are not currently a member of any team.</p>
         </div>
+
         <Card>
           <CardHeader><CardTitle className="text-base">Create a Team</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             {createError && <Alert variant="error">{createError}</Alert>}
             <Input value={newTeamName} onChange={e => setNewTeamName(e.target.value)} placeholder="Team name" />
             <Button onClick={handleCreate} isLoading={isCreating} className="w-full" leftIcon={<Plus className="w-4 h-4" />}>Create Team</Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle className="text-base">Join a Team</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            {acceptError && <Alert variant="error">{acceptError}</Alert>}
+            {acceptSuccess && <Alert variant="success">{acceptSuccess}</Alert>}
+            <p className="text-sm text-nca-text-muted">Enter an invitation token to join an existing team.</p>
+            <Input value={inviteToken} onChange={e => setInviteToken(e.target.value)} placeholder="Invitation token" />
+            <Button onClick={handleAcceptToken} isLoading={isAccepting} className="w-full" variant="secondary" leftIcon={<LogIn className="w-4 h-4" />}>Join Team</Button>
           </CardContent>
         </Card>
       </div>
@@ -79,7 +110,7 @@ export function TeamPage() {
 
       <TeamInfo team={teamInfo.team} isCaptain={teamInfo.is_captain} />
       <TeamMemberList members={members} isCaptain={teamInfo.is_captain} onRemove={removeMember} onTransfer={transferCaptain} />
-      <TeamInvitations invitations={invitations} isCaptain={teamInfo.is_captain} onCreate={createInvitation} onAccept={acceptInvitation} onReject={rejectInvitation} />
+      <TeamInvitations invitations={invitations} isCaptain={teamInfo.is_captain} onCreate={createInvitation} />
       <TeamActions isCaptain={teamInfo.is_captain} onLeave={leaveTeam} />
     </div>
   )

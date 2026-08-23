@@ -6,9 +6,13 @@ import { Alert } from '../ui/Alert'
 import { Copy, Check, Mail, Clock } from 'lucide-react'
 import type { TeamInvitation } from '../../types'
 
-interface TeamInvitationsProps { invitations: TeamInvitation[]; isCaptain: boolean; onCreate: (email: string) => Promise<{ token: string } | null>; onAccept: (token: string) => void; onReject: (token: string) => void }
+interface TeamInvitationsProps {
+  invitations: TeamInvitation[]
+  isCaptain: boolean
+  onCreate: (email: string) => Promise<{ token: string } | null>
+}
 
-export function TeamInvitations({ invitations, isCaptain, onCreate, onAccept, onReject }: TeamInvitationsProps) {
+export function TeamInvitations({ invitations, isCaptain, onCreate }: TeamInvitationsProps) {
   const [email, setEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [newToken, setNewToken] = useState<string | null>(null)
@@ -74,12 +78,6 @@ export function TeamInvitations({ invitations, isCaptain, onCreate, onAccept, on
                   <span className="text-sm text-nca-text">{inv.email}</span>
                   <span className="text-xs text-nca-text-dim capitalize">({inv.status})</span>
                 </div>
-                {inv.status === 'pending' && (
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="secondary" onClick={() => onAccept(inv.token || '')}>Accept</Button>
-                    <Button size="sm" variant="danger" onClick={() => onReject(inv.token || '')}>Reject</Button>
-                  </div>
-                )}
               </div>
             ))}
           </div>
