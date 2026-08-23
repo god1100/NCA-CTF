@@ -33,34 +33,53 @@ $currentPage = 'challenges';
         <div class="container">
             <h1 class="challenges-page__title">Challenges</h1>
 
-            <div class="filters">
-                <label class="filters__field">
-                    Category
-                    <select id="filter-category">
-                        <option value="">All</option>
-                    </select>
-                </label>
-                <label class="filters__field">
-                    Difficulty
-                    <select id="filter-difficulty">
-                        <option value="">All</option>
-                        <option value="easy">Easy</option>
-                        <option value="medium">Medium</option>
-                        <option value="hard">Hard</option>
-                        <option value="insane">Insane</option>
-                    </select>
-                </label>
+            <!-- Shown when the participant is not authenticated (API returns 401) -->
+            <p id="auth-notice" class="challenges-page__notice" hidden>
+                Please <a href="<?= $baseUrl ?>/login.php">log in</a> to view the challenges.
+            </p>
+
+            <!-- Shown while the initial challenge list request is in flight -->
+            <p id="loading-state" class="loading-state">Loading challenges&hellip;</p>
+
+            <!-- Shown if the challenge list request fails for a reason other than 401 -->
+            <p id="error-state" class="error-state" hidden>
+                Unable to load challenges. Please try again.
+            </p>
+
+            <!-- Main browsing view: filters + grid + pagination -->
+            <div id="challenges-app" hidden>
+                <div class="filters">
+                    <label class="filters__field">
+                        Category
+                        <select id="filter-category">
+                            <option value="">All</option>
+                        </select>
+                    </label>
+                    <label class="filters__field">
+                        Difficulty
+                        <select id="filter-difficulty">
+                            <option value="">All</option>
+                            <option value="easy">Easy</option>
+                            <option value="medium">Medium</option>
+                            <option value="hard">Hard</option>
+                            <option value="insane">Insane</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div id="challenge-grid" class="challenge-grid" aria-live="polite"></div>
+
+                <p id="empty-state" class="empty-state" hidden>No challenges found. Try changing your filters.</p>
+
+                <div class="pagination" id="pagination" hidden>
+                    <button class="btn" id="prev-page">Previous</button>
+                    <span id="page-indicator"></span>
+                    <button class="btn" id="next-page">Next</button>
+                </div>
             </div>
 
-            <div id="challenge-grid" class="challenge-grid" aria-live="polite"></div>
-
-            <p id="empty-state" class="empty-state" hidden>No challenges found. Try changing your filters.</p>
-
-            <div class="pagination" id="pagination" hidden>
-                <button class="btn" id="prev-page">Previous</button>
-                <span id="page-indicator"></span>
-                <button class="btn" id="next-page">Next</button>
-            </div>
+            <!-- Challenge detail view (files, hints, flag placeholder) -->
+            <div id="challenge-detail" class="challenge-detail" hidden></div>
         </div>
     </main>
 
