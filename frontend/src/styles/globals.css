@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+@theme {
+  --color-nca-bg: #0b0f19;
+  --color-nca-surface: #111827;
+  --color-nca-surface-hover: #1e293b;
+  --color-nca-border: #1e293b;
+  --color-nca-border-subtle: #334155;
+  --color-nca-text: #f1f5f9;
+  --color-nca-text-muted: #94a3b8;
+  --color-nca-text-dim: #64748b;
+  --color-nca-accent: #38bdf8;
+  --color-nca-accent-dim: #0ea5e9;
+  --color-nca-success: #22c55e;
+  --color-nca-warning: #f59e0b;
+  --color-nca-error: #ef4444;
+  --color-nca-info: #3b82f6;
+}
+
+@layer base {
+  html { scroll-behavior: smooth; }
+  body {
+    background-color: var(--color-nca-bg);
+    color: var(--color-nca-text);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  ::selection {
+    background-color: rgba(56, 189, 248, 0.2);
+    color: #f1f5f9;
+  }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: var(--color-nca-bg); }
+  ::-webkit-scrollbar-thumb { background: var(--color-nca-border-subtle); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #475569; }
+}
+
+@layer utilities {
+  .font-mono-code {
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  }
+  .text-gradient {
+    background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .glow-accent {
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.15);
+  }
+}
