@@ -1,6 +1,6 @@
 <?php
 $baseUrl = $GLOBALS['baseUrl'] ?? '/NCA-CTF/public';
-$from = isset($_GET['from']) ? $_GET['from'] : '/';
+$from = isset($_GET['from']) ? $_GET['from'] : '/dashboard';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -90,7 +90,7 @@ $from = isset($_GET['from']) ? $_GET['from'] : '/';
             </form>
         </div>
     </div>
-
+    <script src="<?= $baseUrl ?>/assets/js/api.js"></script>
     <script src="<?= $baseUrl ?>/assets/js/login.js"></script>
 </body>
 </html>

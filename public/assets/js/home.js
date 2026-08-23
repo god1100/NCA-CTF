@@ -1,31 +1,20 @@
 /**
  * NCA CTF – Homepage Behaviors
+ * Includes session restoration via /api/v1/auth/me
  */
 
 (function () {
     'use strict';
 
-    // Get the base URL from the PHP-injected global variable
     var BASE_URL = window.NCA_CTF_BASE_URL || '';
 
-    // If BASE_URL is empty, try to detect it from the current page
+    // If BASE_URL is empty, use a fallback
     if (!BASE_URL) {
-        var scripts = document.getElementsByTagName('script');
-        var currentScript = scripts[scripts.length - 1];
-        var scriptSrc = currentScript.src;
-        // Extract the base path (everything up to /assets/js/)
-        var match = scriptSrc.match(/^(.*?)\/assets\/js\//);
-        if (match) {
-            BASE_URL = match[1];
-        } else {
-            // Final fallback
-            BASE_URL = '/NCA-CTF/public';
-        }
-        // Also set it on the window so other scripts can use it
+        BASE_URL = '/NCA-CTF/public';
         window.NCA_CTF_BASE_URL = BASE_URL;
     }
 
-    // Helper function to build correct URLs
+    // Helper to build correct URLs
     function url(path) {
         var cleanPath = path.startsWith('/') ? path.substring(1) : path;
         return BASE_URL + '/' + cleanPath;
@@ -46,23 +35,25 @@
 
     // ---- Authentication state ----
     async function loadAuthState() {
+        // Check if navActions exists
+        if (!navActions) {
+            console.warn('navActions element not found');
+            return;
+        }
+
         try {
-            var response = await fetch(url('/api/v1/auth/me'), {
-                credentials: 'include',
-                headers: { 'Accept': 'application/json' }
-            });
+            var result = await window.NCA_API.me();
 
-            if (!response.ok) {
-                setUnauthenticatedNav();
-                return;
+            if (result.ok && result.success) {
+                var user = window.NCA_API.getCurrentUser();
+                if (user) {
+                    setAuthenticatedNav(user);
+                    return;
+                }
             }
 
-            var data = await response.json();
-            if (data.data && data.data.user) {
-                setAuthenticatedNav(data.data.user);
-            } else {
-                setUnauthenticatedNav();
-            }
+            setUnauthenticatedNav();
+
         } catch (_) {
             setUnauthenticatedNav();
         }
@@ -70,26 +61,63 @@
 
     function setAuthenticatedNav(user) {
         navActions.innerHTML = `
-            <a href="${BASE_URL}/dashboard.php" class="btn btn--secondary">Dashboard</a>
-            <a href="#" class="btn btn--secondary" onclick="event.preventDefault(); logout();">Logout</a>
+            <div class="navbar__user">
+                <button class="user-btn" id="userMenuBtn" aria-expanded="false" aria-label="User menu">
+                    <i class="fas fa-user-circle"></i>
+                    <span>${user.username || 'User'}</span>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <div class="user-dropdown" id="userDropdown" role="menu">
+                    <div class="dropdown-header">
+                        <strong>${user.username || 'User'}</strong>
+                        <span>${user.role || 'participant'}</span>
+                    </div>
+                    <div class="dropdown-divider"></div>
+                   <a href="${BASE_URL}/dashboard" class="dropdown-item" role="menuitem">
+                        <i class="fas fa-tachometer-alt"></i> Dashboard
+                    </a>
+                    <div class="dropdown-divider"></div>
+                    <a href="#" class="dropdown-item dropdown-item-danger" id="logoutBtn" role="menuitem">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </a>
+                </div>
+            </div>
         `;
-        // Define logout function globally so the onclick can call it
-        window.logout = async function() {
-            var csrfToken = window.__nca_ctf ? window.__nca_ctf.getCsrfToken() : null;
-            try {
-                await fetch(url('/api/v1/auth/logout'), {
-                    method: 'POST',
-                    credentials: 'include',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-Token': csrfToken || ''
-                    }
-                });
-                window.location.href = BASE_URL + '/';
-            } catch (_) {
-                window.location.href = BASE_URL + '/';
-            }
-        };
+
+        // Add dropdown toggle
+        var userMenuBtn = document.getElementById('userMenuBtn');
+        var userDropdown = document.getElementById('userDropdown');
+
+        if (userMenuBtn) {
+            userMenuBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                var expanded = this.getAttribute('aria-expanded') === 'true' ? false : true;
+                this.setAttribute('aria-expanded', expanded);
+                if (userDropdown) userDropdown.classList.toggle('open');
+            });
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function () {
+            if (userDropdown) userDropdown.classList.remove('open');
+            if (userMenuBtn) userMenuBtn.setAttribute('aria-expanded', 'false');
+        });
+
+        // Logout
+        var logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', async function (e) {
+                e.preventDefault();
+                try {
+                    var result = await window.NCA_API.logout();
+                    window.NCA_API.clearAuthState();
+                    window.location.href = BASE_URL + '/';
+                } catch (_) {
+                    window.NCA_API.clearAuthState();
+                    window.location.href = BASE_URL + '/';
+                }
+            });
+        }
     }
 
     function setUnauthenticatedNav() {
@@ -101,6 +129,12 @@
 
     // ---- Init ----
     function init() {
+        // Wait for API to be loaded
+        if (typeof window.NCA_API === 'undefined') {
+            console.warn('NCA_API not loaded, retrying...');
+            setTimeout(init, 500);
+            return;
+        }
         loadAuthState();
     }
 

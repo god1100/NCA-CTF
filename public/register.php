@@ -141,7 +141,7 @@ $baseUrl = $GLOBALS['baseUrl'] ?? '/NCA-CTF/public';
             </form>
         </div>
     </div>
-
+    <script src="<?= $baseUrl ?>/assets/js/api.js"></script>
     <script src="<?= $baseUrl ?>/assets/js/register.js"></script>
 </body>
 </html>

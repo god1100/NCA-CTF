@@ -1,6 +1,9 @@
 <?php
 $baseUrl = $GLOBALS['baseUrl'] ?? '';
 ?>
+<script>
+    window.NCA_CTF_BASE_URL = '<?= $baseUrl ?>';
+</script>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -123,6 +126,7 @@ $baseUrl = $GLOBALS['baseUrl'] ?? '';
 
      <?php include __DIR__ . '/components/footer.php'; ?>
 
+    <script src="<?= $baseUrl ?>/assets/js/api.js"></script>
     <script src="<?= $baseUrl ?>/assets/js/home.js"></script>
 </body>
 </html>

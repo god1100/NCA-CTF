@@ -1,0 +1,406 @@
+/* ================================================================
+   NCA CTF – Dashboard Styles
+   ================================================================ */
+
+/* ----- Dashboard Layout ----- */
+.dashboard {
+    padding: 2rem 0 4rem;
+    background: var(--color-bg);
+    min-height: calc(100vh - 180px);
+}
+
+/* ----- Welcome Section ----- */
+.dashboard__welcome {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 0;
+    border-bottom: 1px solid var(--color-border);
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.dashboard__title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--color-text-primary);
+}
+
+.dashboard__title span {
+    color: var(--color-accent-light);
+}
+
+.dashboard__subtitle {
+    color: var(--color-text-secondary);
+    font-size: 1rem;
+    margin: 0.2rem 0 0 0;
+}
+
+/* ----- Stats Cards ----- */
+.dashboard__stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: border-color 0.2s;
+}
+
+.stat-card:hover {
+    border-color: var(--color-accent-light);
+}
+
+.stat-card__icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--color-accent-glow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.stat-card__icon i {
+    font-size: 1.4rem;
+    color: var(--color-accent-light);
+}
+
+.stat-card__content {
+    flex: 1;
+}
+
+.stat-card__label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.stat-card__value {
+    display: block;
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--color-text-primary);
+    line-height: 1.2;
+}
+
+.stat-card__status {
+    display: inline-block;
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+    background: var(--color-bg);
+    padding: 0.1rem 0.6rem;
+    border-radius: 999px;
+    border: 1px solid var(--color-border);
+    margin-top: 0.2rem;
+}
+
+/* ----- Dashboard Grid (2 columns) ----- */
+.dashboard__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.dashboard__card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.card-header {
+    padding: 1.2rem 1.5rem;
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-bg-secondary);
+}
+
+.card-header h2 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--color-text-primary);
+}
+
+.card-header h2 i {
+    color: var(--color-accent-light);
+    margin-right: 0.5rem;
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+/* ----- Account Info Rows ----- */
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.info-row:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+}
+
+.info-value {
+    color: var(--color-text-primary);
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-align: right;
+    word-break: break-word;
+}
+
+/* ----- Help Section ----- */
+.help-text {
+    color: var(--color-text-secondary);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin: 0 0 1.2rem 0;
+}
+
+.discord-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.8rem;
+    margin-bottom: 1.2rem;
+}
+
+.discord-btn i {
+    font-size: 1.2rem;
+}
+
+.help-contacts {
+    background: var(--color-bg);
+    border-radius: var(--radius-sm);
+    padding: 1rem;
+}
+
+.contact-group {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.3rem 0;
+}
+
+.contact-group:last-child {
+    border-bottom: none;
+}
+
+.contact-label {
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+}
+
+.contact-value {
+    color: var(--color-text-secondary);
+    font-size: 0.9rem;
+}
+
+/* ----- User Dropdown ----- */
+.navbar__user {
+    position: relative;
+}
+
+.user-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: transparent;
+    border: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    padding: 0.4rem 0.6rem;
+    border-radius: var(--radius-sm);
+    transition: all 0.2s;
+    font-family: var(--font-ui);
+    font-size: 0.9rem;
+}
+
+.user-btn:hover {
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+}
+
+.user-btn i {
+    font-size: 1.2rem;
+}
+
+.user-btn i.fa-user-circle {
+    color: var(--color-accent-light);
+    font-size: 1.6rem;
+}
+
+.user-btn i.fa-chevron-down {
+    font-size: 0.7rem;
+    margin-left: 0.2rem;
+}
+
+.user-dropdown {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    right: 0;
+    min-width: 220px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+    display: none;
+    z-index: 1000;
+    overflow: hidden;
+}
+
+.user-dropdown.open {
+    display: block;
+}
+
+.dropdown-header {
+    padding: 0.8rem 1rem;
+    background: var(--color-bg-secondary);
+}
+
+.dropdown-header strong {
+    display: block;
+    color: var(--color-text-primary);
+    font-size: 0.95rem;
+}
+
+.dropdown-header span {
+    display: block;
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+    text-transform: capitalize;
+}
+
+.dropdown-divider {
+    height: 1px;
+    background: var(--color-border);
+    margin: 0.2rem 0;
+}
+
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.7rem 1rem;
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    width: 100%;
+    text-align: left;
+    font-family: var(--font-ui);
+}
+
+.dropdown-item:hover {
+    background: var(--color-bg);
+    color: var(--color-text-primary);
+}
+
+.dropdown-item i {
+    width: 1.2rem;
+    color: var(--color-text-muted);
+}
+
+.dropdown-item-danger {
+    color: #ef5350;
+}
+
+.dropdown-item-danger:hover {
+    background: rgba(239, 83, 80, 0.1);
+    color: #ef5350;
+}
+
+.dropdown-item-danger i {
+    color: #ef5350;
+}
+
+/* ----- Responsive ----- */
+@media (max-width: 992px) {
+    .dashboard__stats {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard__grid {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard__stats {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .dashboard__welcome {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .dashboard__title {
+        font-size: 1.4rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .dashboard__stats {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard__welcome .btn--large {
+        width: 100%;
+        text-align: center;
+    }
+
+    .info-row {
+        flex-direction: column;
+        padding: 0.4rem 0;
+    }
+
+    .info-value {
+        text-align: left;
+        padding-top: 0.1rem;
+    }
+
+    .user-dropdown {
+        right: -1rem;
+        min-width: 200px;
+    }
+}
+
+/* ----- Accessibility ----- */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+a:focus-visible,
+button:focus-visible {
+    outline: 2px solid var(--color-accent-light);
+    outline-offset: 2px;
+}

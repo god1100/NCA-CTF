@@ -1,28 +1,26 @@
 /**
- * NCA CTF – Register Page
+ * NCA CTF – Login Page
+ * Connects to backend API via api.js
  */
 
 (function () {
     'use strict';
 
+    // API helper is loaded via api.js
     var BASE_URL = window.NCA_CTF_BASE_URL || '';
+    var REDIRECT_URL = window.NCA_CTF_REDIRECT || '/';
 
-    function url(path) {
-        var cleanPath = path.startsWith('/') ? path.substring(1) : path;
-        return BASE_URL + '/' + cleanPath;
-    }
-
-    var form = document.getElementById('registerForm');
-    var usernameInput = document.getElementById('username');
-    var emailInput = document.getElementById('email');
-    var fullNameInput = document.getElementById('full_name');
+    // ---- DOM refs ----
+    var form = document.getElementById('loginForm');
+    var identifierInput = document.getElementById('identifier');
     var passwordInput = document.getElementById('password');
-    var passwordConfirmInput = document.getElementById('password_confirm');
+    var identifierError = document.getElementById('identifierError');
+    var passwordError = document.getElementById('passwordError');
     var formMessage = document.getElementById('formMessage');
-    var registerButton = document.getElementById('registerButton');
+    var loginButton = document.getElementById('loginButton');
     var togglePassword = document.getElementById('togglePassword');
-    var togglePasswordConfirm = document.getElementById('togglePasswordConfirm');
 
+    // ---- Password visibility toggle ----
     if (togglePassword) {
         togglePassword.addEventListener('click', function () {
             var type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
@@ -31,28 +29,19 @@
         });
     }
 
-    if (togglePasswordConfirm) {
-        togglePasswordConfirm.addEventListener('click', function () {
-            var type = passwordConfirmInput.getAttribute('type') === 'password' ? 'text' : 'password';
-            passwordConfirmInput.setAttribute('type', type);
-            this.querySelector('i').className = type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
-        });
-    }
-
-    ['username', 'email', 'full_name', 'password', 'password_confirm'].forEach(function(id) {
-        var input = document.getElementById(id);
-        if (input) {
-            input.addEventListener('input', function() {
-                clearFieldError(id);
-            });
-        }
+    // ---- Clear errors on input ----
+    identifierInput.addEventListener('input', function () {
+        clearFieldError('identifier');
+    });
+    passwordInput.addEventListener('input', function () {
+        clearFieldError('password');
     });
 
-    function clearFieldError(fieldId) {
-        var errorEl = document.getElementById(fieldId + 'Error');
-        var inputEl = document.getElementById(fieldId);
-        if (errorEl) errorEl.textContent = '';
-        if (inputEl) inputEl.classList.remove('error');
+    function clearFieldError(field) {
+        var errorEl = field === 'identifier' ? identifierError : passwordError;
+        var inputEl = field === 'identifier' ? identifierInput : passwordInput;
+        errorEl.textContent = '';
+        inputEl.classList.remove('error');
         hideMessage();
     }
 
@@ -67,115 +56,102 @@
     }
 
     function setLoading(loading) {
-        registerButton.disabled = loading;
-        var textSpan = registerButton.querySelector('.btn-text');
-        var loaderSpan = registerButton.querySelector('.btn-loader');
+        loginButton.disabled = loading;
+        var textSpan = loginButton.querySelector('.btn-text');
+        var loaderSpan = loginButton.querySelector('.btn-loader');
         if (loading) {
-            textSpan.textContent = 'Creating Account...';
+            textSpan.textContent = 'Logging in...';
             loaderSpan.style.display = 'inline-block';
         } else {
-            textSpan.textContent = 'Create Account';
+            textSpan.textContent = 'Log In';
             loaderSpan.style.display = 'none';
         }
     }
 
+    // ---- Client-side validation ----
     function validateForm() {
         var isValid = true;
-        var username = usernameInput.value.trim();
-        var email = emailInput.value.trim();
+        var identifier = identifierInput.value.trim();
         var password = passwordInput.value;
-        var passwordConfirm = passwordConfirmInput.value;
 
-        // Username
-        if (!username || username.length < 3) {
-            document.getElementById('usernameError').textContent = 'Username must be at least 3 characters.';
-            usernameInput.classList.add('error');
-            isValid = false;
-        } else if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-            document.getElementById('usernameError').textContent = 'Username may only contain letters, numbers, and underscores.';
-            usernameInput.classList.add('error');
+        if (!identifier) {
+            identifierError.textContent = 'Username or email is required.';
+            identifierInput.classList.add('error');
             isValid = false;
         }
 
-        // Email
-        if (!email || !email.includes('@') || !email.includes('.')) {
-            document.getElementById('emailError').textContent = 'A valid email address is required.';
-            emailInput.classList.add('error');
-            isValid = false;
-        }
-
-        // Password: Minimum 6 characters
-        if (!password || password.length < 6) {
-            document.getElementById('passwordError').textContent = 'Password must be at least 6 characters.';
+        if (!password) {
+            passwordError.textContent = 'Password is required.';
             passwordInput.classList.add('error');
-            isValid = false;
-        }
-
-        // Password Confirm
-        if (password !== passwordConfirm) {
-            document.getElementById('passwordConfirmError').textContent = 'Passwords do not match.';
-            passwordConfirmInput.classList.add('error');
             isValid = false;
         }
 
         return isValid;
     }
 
+    // ---- Submit handler ----
     form.addEventListener('submit', async function (e) {
         e.preventDefault();
         hideMessage();
-
-        ['username', 'email', 'full_name', 'password', 'password_confirm'].forEach(function(id) {
-            clearFieldError(id);
-        });
+        clearFieldError('identifier');
+        clearFieldError('password');
 
         if (!validateForm()) {
             return;
         }
 
-        if (registerButton.disabled) return;
+        if (loginButton.disabled) return;
 
         setLoading(true);
 
-        var username = usernameInput.value.trim();
-        var email = emailInput.value.trim();
-        var fullName = fullNameInput.value.trim() || null;
+        var identifier = identifierInput.value.trim();
         var password = passwordInput.value;
 
         try {
-            var response = await fetch(url('/api/v1/auth/register'), {
-                method: 'POST',
-                credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    username: username,
-                    email: email,
-                    full_name: fullName,
-                    password: password
-                })
+            var result = await window.NCA_API.login({
+                identifier: identifier,
+                password: password
             });
 
-            var data = await response.json();
+            if (result.ok && result.success) {
+                // CSRF token is automatically saved by api.js
+                showMessage('Login successful! Redirecting...', 'success');
 
-            if (response.ok) {
-                showMessage('Registration successful! Redirecting to login...', 'success');
                 setTimeout(function () {
-                    window.location.href = BASE_URL + '/login.php';
-                }, 1500);
-            } else if (response.status === 422) {
-                var errors = data.message || data.errors || 'Registration failed.';
-                if (Array.isArray(errors)) errors = errors.join(' ');
-                showMessage(errors, 'error');
+                    // Redirect to dashboard route (not .php file)
+                    window.location.href = BASE_URL + '/dashboard';
+                }, 800);
+
+            } else if (result.status === 401) {
+                showMessage('Invalid username/email or password.', 'error');
+                identifierInput.classList.add('error');
+                passwordInput.classList.add('error');
                 setLoading(false);
-            } else if (response.status === 429) {
-                showMessage(data.message || 'Too many registration attempts. Please try again later.', 'error');
+
+            } else if (result.status === 400) {
+                var msg = result.data && result.data.message ? result.data.message : 'Identifier and password are required.';
+                showMessage(msg, 'error');
                 setLoading(false);
+
+            } else if (result.status === 429) {
+                var rateMsg = result.data && result.data.message ? result.data.message : 'Too many login attempts. Please try again later.';
+                showMessage(rateMsg, 'error');
+                setLoading(false);
+
+            } else if (result.status === 419) {
+                showMessage('Session expired. Please refresh the page and try again.', 'error');
+                setLoading(false);
+
+            } else if (result.status === 500) {
+                showMessage('Something went wrong. Please try again later.', 'error');
+                setLoading(false);
+
             } else {
-                showMessage(data.message || 'Registration failed. Please try again.', 'error');
+                var errorMsg = result.data && result.data.message ? result.data.message : 'An unexpected error occurred. Please try again.';
+                showMessage(errorMsg, 'error');
                 setLoading(false);
             }
+
         } catch (error) {
             showMessage('Network error. Please check your connection and try again.', 'error');
             setLoading(false);

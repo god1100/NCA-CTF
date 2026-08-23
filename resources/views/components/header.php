@@ -1,5 +1,6 @@
 <?php
 $baseUrl = $GLOBALS['baseUrl'] ?? '';
+$currentPage = $currentPage ?? '';
 ?>
 <nav class="navbar" role="navigation" aria-label="Main navigation">
     <div class="navbar__container">
@@ -18,13 +19,14 @@ $baseUrl = $GLOBALS['baseUrl'] ?? '';
 
         <div class="navbar__menu" id="navMenu">
             <ul class="navbar__links">
-                <li><a href="<?= $baseUrl ?>/" <?= ($currentPage ?? '') === 'home' ? 'class="active"' : '' ?>>Home</a></li>
-                <li><a href="<?= $baseUrl ?>/challenges.php" <?= ($currentPage ?? '') === 'challenges' ? 'class="active"' : '' ?>>Challenges</a></li>
-                <li><a href="<?= $baseUrl ?>/about.php" <?= ($currentPage ?? '') === 'about' ? 'class="active"' : '' ?>>About Us</a></li>
+                <li><a href="<?= $baseUrl ?>/" <?= $currentPage === 'home' ? 'class="active"' : '' ?>>Home</a></li>
+                <li><a href="<?= $baseUrl ?>/challenges.php" <?= $currentPage === 'challenges' ? 'class="active"' : '' ?>>Challenges</a></li>
+                <li><a href="<?= $baseUrl ?>/categories.php" <?= $currentPage === 'categories' ? 'class="active"' : '' ?>>Categories</a></li>
+                <li><a href="<?= $baseUrl ?>/leaderboard.php" <?= $currentPage === 'leaderboard' ? 'class="active"' : '' ?>>Leaderboard</a></li>
+                <li><a href="<?= $baseUrl ?>/about.php" <?= $currentPage === 'about' ? 'class="active"' : '' ?>>About</a></li>
             </ul>
             <div class="navbar__actions" id="navActions">
-                <a href="<?= $baseUrl ?>/login.php" class="btn btn--secondary">Login</a>
-                <a href="<?= $baseUrl ?>/register.php" class="btn btn--primary">Register</a>
+                <!-- Will be populated by JavaScript based on auth state -->
             </div>
         </div>
     </div>

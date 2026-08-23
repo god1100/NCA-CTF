@@ -1,16 +1,12 @@
 /**
  * NCA CTF – Register Page
+ * Connects to backend API via api.js
  */
 
 (function () {
     'use strict';
 
     var BASE_URL = window.NCA_CTF_BASE_URL || '';
-
-    function url(path) {
-        var cleanPath = path.startsWith('/') ? path.substring(1) : path;
-        return BASE_URL + '/' + cleanPath;
-    }
 
     // ---- DOM refs ----
     var form = document.getElementById('registerForm');
@@ -42,10 +38,10 @@
     }
 
     // ---- Clear errors on input ----
-    ['username', 'email', 'full_name', 'password', 'password_confirm'].forEach(function(id) {
+    ['username', 'email', 'full_name', 'password', 'password_confirm'].forEach(function (id) {
         var input = document.getElementById(id);
         if (input) {
-            input.addEventListener('input', function() {
+            input.addEventListener('input', function () {
                 clearFieldError(id);
             });
         }
@@ -108,13 +104,10 @@
             isValid = false;
         }
 
-        // Password
-        if (!password || password.length < 10) {
-            document.getElementById('passwordError').textContent = 'Password must be at least 10 characters.';
-            passwordInput.classList.add('error');
-            isValid = false;
-        } else if (!/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
-            document.getElementById('passwordError').textContent = 'Password must contain at least one letter and one number.';
+        // Password: Minimum 6 characters (backend validation is 10, but frontend pre-checks)
+        // Password: Minimum 6 characters (matching backend)
+        if (!password || password.length < 6) {
+            document.getElementById('passwordError').textContent = 'Password must be at least 6 characters.';
             passwordInput.classList.add('error');
             isValid = false;
         }
@@ -134,7 +127,7 @@
         e.preventDefault();
         hideMessage();
 
-        ['username', 'email', 'full_name', 'password', 'password_confirm'].forEach(function(id) {
+        ['username', 'email', 'full_name', 'password', 'password_confirm'].forEach(function (id) {
             clearFieldError(id);
         });
 
@@ -152,39 +145,49 @@
         var password = passwordInput.value;
 
         try {
-            var response = await fetch(url('/api/v1/auth/register'), {
-                method: 'POST',
-                credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    username: username,
-                    email: email,
-                    full_name: fullName,
-                    password: password
-                })
+            var result = await window.NCA_API.register({
+                username: username,
+                email: email,
+                full_name: fullName,
+                password: password
             });
 
-            var data = await response.json();
-
-            if (response.ok) {
+            if (result.ok && result.success) {
                 showMessage('Registration successful! Redirecting to login...', 'success');
+
                 setTimeout(function () {
-                    window.location.href = BASE_URL + '/login';
+                    window.location.href = BASE_URL + '/login.php';
                 }, 1500);
-            } else if (response.status === 422) {
-                var errors = data.message || data.errors || 'Registration failed.';
-                if (Array.isArray(errors)) errors = errors.join(' ');
-                showMessage(errors, 'error');
+
+            } else if (result.status === 422) {
+                // Validation error - extract message
+                var msg = result.data && result.data.message ? result.data.message : 'Registration failed.';
+                // If it's an array, join it
+                if (Array.isArray(msg)) msg = msg.join(' ');
+                showMessage(msg, 'error');
                 setLoading(false);
-            } else if (response.status === 429) {
-                showMessage(data.message || 'Too many registration attempts. Please try again later.', 'error');
+
+            } else if (result.status === 409) {
+                // Duplicate username/email
+                var dupMsg = result.data && result.data.message ? result.data.message : 'Username or email already taken.';
+                showMessage(dupMsg, 'error');
                 setLoading(false);
+
+            } else if (result.status === 429) {
+                var rateMsg = result.data && result.data.message ? result.data.message : 'Too many registration attempts. Please try again later.';
+                showMessage(rateMsg, 'error');
+                setLoading(false);
+
+            } else if (result.status === 500) {
+                showMessage('Something went wrong. Please try again later.', 'error');
+                setLoading(false);
+
             } else {
-                showMessage(data.message || 'Registration failed. Please try again.', 'error');
+                var errorMsg = result.data && result.data.message ? result.data.message : 'Registration failed. Please try again.';
+                showMessage(errorMsg, 'error');
                 setLoading(false);
             }
+
         } catch (error) {
             showMessage('Network error. Please check your connection and try again.', 'error');
             setLoading(false);

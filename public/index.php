@@ -15,9 +15,8 @@ $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
 $basePath = rtrim(dirname($scriptName), '/\\');
 $baseUrl = $protocol . $host . $basePath;
 
-// Make baseUrl available globally for views AND for the rest of the app
+// Make baseUrl available globally for views
 $GLOBALS['baseUrl'] = $baseUrl;
-define('BASE_URL', $baseUrl);  // Also define it as a constant
 
 // --- Autoloading -----------------------------------------------------
 if (is_file($baseDir . '/vendor/autoload.php')) {
@@ -49,13 +48,26 @@ ini_set('error_log', $baseDir . '/storage/logs/app.log');
 
 // --- Request dispatch -----------------------------------------------------
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-$uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
+$requestUri = $_SERVER['REQUEST_URI'] ?? '/';
 
 // --- Strip base path from URI ---
 $basePathClean = rtrim($basePath, '/');
-if ($basePathClean !== '' && strpos($uri, $basePathClean) === 0) {
-    $uri = substr($uri, strlen($basePathClean));
+
+// Remove base path first
+if ($basePathClean !== '' && strpos($requestUri, $basePathClean) === 0) {
+    $requestUri = substr($requestUri, strlen($basePathClean));
 }
+
+// Remove query string if present
+if (strpos($requestUri, '?') !== false) {
+    $requestUri = substr($requestUri, 0, strpos($requestUri, '?'));
+}
+
+// Remove /index.php if present
+$requestUri = preg_replace('#^/index\.php#', '', $requestUri);
+
+// Parse the URI to get just the path
+$uri = parse_url($requestUri, PHP_URL_PATH) ?? '/';
 $uri = '/' . ltrim($uri, '/');
 $uri = rtrim($uri, '/') ?: '/';
 
@@ -70,28 +82,34 @@ if (str_starts_with($uri, '/api/')) {
 }
 
 // --- Static pages ---
+
+// DASHBOARD ROUTE - Check BEFORE the switch
+// DEBUG
+echo "<!-- DEBUG: URI = " . $uri . " -->";
+if ($uri === '/dashboard') {
+    Session::start();
+    $userId = Session::get('auth_user_id');
+    if (!$userId) {
+        header('Location: ' . $baseUrl . '/login.php');
+        exit;
+    }
+    require $baseDir . '/resources/views/dashboard.php';
+    exit;
+}
+
+// Switch for other routes
 switch ($uri) {
     case '/challenges':
         require $baseDir . '/resources/views/challenges.php';
         exit;
     case '/login':
-        // Redirect to the actual login.php file
-        header('Location: ' . $baseUrl . '/login.php');
+        require $baseDir . '/public/login.php';
         exit;
     case '/register':
-        header('Location: ' . $baseUrl . '/register.php');
+        require $baseDir . '/public/register.php';
         exit;
     case '/about':
-        header('Location: ' . $baseUrl . '/about.php');
-        exit;
-    case '/dashboard':
-        Session::start();
-        $userId = Session::get('auth_user_id');
-        if (!$userId) {
-            header('Location: ' . $baseUrl . '/login.php');
-            exit;
-        }
-        require $baseDir . '/resources/views/dashboard.php';
+        require $baseDir . '/public/about.php';
         exit;
     default:
         require $baseDir . '/resources/views/landing.php';

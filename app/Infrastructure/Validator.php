@@ -61,8 +61,8 @@ final class Validator
             return ['Password is required.'];
         }
 
-        if (strlen($value) < 10) {
-            $errors[] = 'Password must be at least 10 characters long.';
+        if (strlen($value) < 6) {
+            $errors[] = 'Password must be at least 6 characters long.';
         }
 
         if (!preg_match('/[A-Za-z]/', $value) || !preg_match('/[0-9]/', $value)) {
