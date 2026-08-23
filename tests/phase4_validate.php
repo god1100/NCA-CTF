@@ -24,6 +24,22 @@ declare(strict_types=1);
  *
  *   & "C:\xampp\php\php.exe" tests\phase4_validate.php --database=nca_ctf_test
  *
+ * CRITICAL — READ THIS:
+ * This validator's --database flag ONLY controls which database THIS
+ * SCRIPT resets/migrates/seeds/queries directly. It has NO effect on
+ * the already-running HTTP server above, which is a separate process
+ * that reads DB_DATABASE purely from its own .env file (or a real
+ * shell environment variable) at the moment IT was started. Before
+ * starting the server, make sure the project's .env contains:
+ *
+ *   DB_DATABASE=nca_ctf_test
+ *
+ * (matching whatever --database value you pass below). If it does
+ * not match, this validator will detect the mismatch during its
+ * mandatory database identity check and stop immediately with a
+ * clear diagnosis, rather than running into dozens of confusing
+ * downstream failures.
+ *
  * Options:
  *
  *   --port=8124                     Port of the already-running server
@@ -202,60 +218,35 @@ function removeFile(string $path): void
  * Run a curl.exe command via proc_open() with an argument array.
  *
  * This is the Windows-reliable transport already proven in
- * phase3_validate.php. It intentionally avoids shell_exec() +
- * escapeshellarg(), because Windows' cmd.exe quoting rules for
- * escapeshellarg() are inconsistent (particularly with JSON bodies
- * containing quotes/backslashes) and can silently corrupt requests
- * or spawn nothing at all.
+ * phase3_validate.php had used, plus a further reliability fix: it
+ * performs HTTP requests using PHP's native cURL extension
+ * (curl_init/curl_exec) instead of spawning a curl.exe *child
+ * process* via proc_open(). On at least one real Windows/XAMPP
+ * machine, curl.exe run directly in a terminal worked fine, but
+ * curl.exe spawned as a child process from inside PHP via
+ * proc_open() consistently timed out with 0 bytes received (curl
+ * exit 28), even though the PHP dev server was confirmed listening
+ * and reachable via a normal terminal curl call. That is consistent
+ * with security software (AV/EDR) or a proxy environment variable
+ * treating child-process-initiated network I/O differently from
+ * interactive terminal use. Using ext-curl performs the request from
+ * within this same PHP process, with no child process involved,
+ * which sidesteps that class of problem entirely. XAMPP ships
+ * ext-curl enabled by default.
  */
-function curlBinaryName(): string
-{
-    return PHP_OS_FAMILY === 'Windows' ? 'curl.exe' : 'curl';
-}
-
-function runCurl(array $args): array
-{
-    $command = array_merge([curlBinaryName()], $args);
-
-    $descriptorSpec = [
-        0 => ['pipe', 'r'],
-        1 => ['pipe', 'w'],
-        2 => ['pipe', 'w'],
-    ];
-
-    $process = proc_open(
-        $command,
-        $descriptorSpec,
-        $pipes
+if (!extension_loaded('curl')) {
+    fwrite(
+        STDERR,
+        "ERROR: The PHP curl extension is not loaded.\n"
+        . "XAMPP ships this enabled by default under extension=curl\n"
+        . "in php.ini. Enable it and restart, then re-run.\n"
     );
 
-    if (!is_resource($process)) {
-        return [
-            'exit_code' => -1,
-            'stdout' => '',
-            'stderr' => 'Unable to start curl.exe',
-        ];
-    }
-
-    fclose($pipes[0]);
-
-    $stdout = stream_get_contents($pipes[1]);
-    $stderr = stream_get_contents($pipes[2]);
-
-    fclose($pipes[1]);
-    fclose($pipes[2]);
-
-    $exitCode = proc_close($process);
-
-    return [
-        'exit_code' => $exitCode,
-        'stdout' => $stdout !== false ? $stdout : '',
-        'stderr' => $stderr !== false ? $stderr : '',
-    ];
+    exit(1);
 }
 
 /**
- * Perform a real HTTP request using curl.exe.
+ * Perform a real HTTP request using PHP's native cURL extension.
  */
 function httpRequest(
     string $method,
@@ -264,21 +255,20 @@ function httpRequest(
     ?string $cookieJar = null,
     array $headers = []
 ): array {
-    $args = [
-        '-sS',
-        '-i',
-        '--max-time',
-        '15',
-        '--connect-timeout',
-        '5',
-        '-X',
-        $method,
-    ];
+    $ch = curl_init();
 
-    foreach ($headers as $header) {
-        $args[] = '-H';
-        $args[] = $header;
-    }
+    curl_setopt_array($ch, [
+        CURLOPT_URL => $url,
+        CURLOPT_CUSTOMREQUEST => $method,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HEADER => true,
+        CURLOPT_TIMEOUT => 15,
+        CURLOPT_CONNECTTIMEOUT => 5,
+        CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+        CURLOPT_FOLLOWLOCATION => false,
+    ]);
+
+    $requestHeaders = $headers;
 
     if ($jsonBody !== null) {
         $encoded = json_encode(
@@ -292,11 +282,13 @@ function httpRequest(
             );
         }
 
-        $args[] = '-H';
-        $args[] = 'Content-Type: application/json';
+        $requestHeaders[] = 'Content-Type: application/json';
 
-        $args[] = '--data-raw';
-        $args[] = $encoded;
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $encoded);
+    }
+
+    if ($requestHeaders !== []) {
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $requestHeaders);
     }
 
     if ($cookieJar !== null) {
@@ -306,81 +298,32 @@ function httpRequest(
             mkdir($cookieDirectory, 0777, true);
         }
 
-        $args[] = '-c';
-        $args[] = $cookieJar;
-
-        $args[] = '-b';
-        $args[] = $cookieJar;
+        curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieJar);
+        curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieJar);
     }
 
-    /*
-     * Force IPv4 on Windows to avoid occasional ::1 vs 127.0.0.1
-     * mismatches against PHP's built-in server.
-     */
-    $args[] = '-4';
+    $raw = curl_exec($ch);
 
-    $args[] = $url;
+    $errorNumber = curl_errno($ch);
+    $errorMessage = curl_error($ch);
+    $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $headerSize = (int) curl_getinfo($ch, CURLINFO_HEADER_SIZE);
 
-    $result = runCurl($args);
+    curl_close($ch);
 
-    $raw = $result['stdout'];
-
-    /*
-     * curl may include multiple header blocks, for example
-     * when redirects happen. We want the final HTTP header.
-     */
-    $headerPart = '';
-    $bodyPart = $raw;
-
-    $separatorPositions = [];
-
-    $offset = 0;
-
-    while (($position = strpos($raw, "\r\n\r\n", $offset)) !== false) {
-        $separatorPositions[] = $position;
-        $offset = $position + 4;
+    if ($raw === false) {
+        return [
+            'status' => 0,
+            'body' => [],
+            'raw' => '',
+            'header' => '',
+            'curl_exit_code' => $errorNumber,
+            'curl_stderr' => $errorMessage,
+        ];
     }
 
-    if ($separatorPositions === []) {
-        $offset = 0;
-
-        while (($position = strpos($raw, "\n\n", $offset)) !== false) {
-            $separatorPositions[] = $position;
-            $offset = $position + 2;
-        }
-
-        $separatorLength = 2;
-    } else {
-        $separatorLength = 4;
-    }
-
-    if ($separatorPositions !== []) {
-        $lastSeparator = end($separatorPositions);
-
-        $headerPart = substr(
-            $raw,
-            0,
-            $lastSeparator
-        );
-
-        $bodyPart = substr(
-            $raw,
-            $lastSeparator + $separatorLength
-        );
-    }
-
-    $status = 0;
-
-    if (
-        preg_match_all(
-            '/HTTP\/\d(?:\.\d)?\s+(\d{3})/i',
-            $headerPart,
-            $matches
-        )
-    ) {
-        $lastIndex = count($matches[1]) - 1;
-        $status = (int) $matches[1][$lastIndex];
-    }
+    $headerPart = substr($raw, 0, $headerSize);
+    $bodyPart = substr($raw, $headerSize);
 
     $decoded = json_decode(
         $bodyPart,
@@ -392,13 +335,13 @@ function httpRequest(
         'body' => is_array($decoded) ? $decoded : [],
         'raw' => $bodyPart,
         'header' => $headerPart,
-        'curl_exit_code' => $result['exit_code'],
-        'curl_stderr' => $result['stderr'],
+        'curl_exit_code' => $errorNumber,
+        'curl_stderr' => $errorMessage,
     ];
 }
 
 /**
- * Upload a file using multipart/form-data.
+ * Upload a file using multipart/form-data via native ext-curl.
  */
 function uploadFile(
     string $url,
@@ -406,69 +349,53 @@ function uploadFile(
     ?string $cookieJar,
     array $headers
 ): array {
-    $args = [
-        '-sS',
-        '-i',
-        '--max-time',
-        '20',
-        '--connect-timeout',
-        '5',
-        '-X',
-        'POST',
-    ];
+    $ch = curl_init();
 
-    foreach ($headers as $header) {
-        $args[] = '-H';
-        $args[] = $header;
+    curl_setopt_array($ch, [
+        CURLOPT_URL => $url,
+        CURLOPT_CUSTOMREQUEST => 'POST',
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HEADER => true,
+        CURLOPT_TIMEOUT => 20,
+        CURLOPT_CONNECTTIMEOUT => 5,
+        CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+        CURLOPT_FOLLOWLOCATION => false,
+        CURLOPT_POSTFIELDS => [
+            'file' => new CURLFile($filePath),
+        ],
+    ]);
+
+    if ($headers !== []) {
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
     }
 
     if ($cookieJar !== null) {
-        $args[] = '-c';
-        $args[] = $cookieJar;
-
-        $args[] = '-b';
-        $args[] = $cookieJar;
+        curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieJar);
+        curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieJar);
     }
 
-    $args[] = '-F';
-    $args[] = 'file=@' . $filePath;
+    $raw = curl_exec($ch);
 
-    $args[] = '-4';
+    $errorNumber = curl_errno($ch);
+    $errorMessage = curl_error($ch);
+    $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $headerSize = (int) curl_getinfo($ch, CURLINFO_HEADER_SIZE);
 
-    $args[] = $url;
+    curl_close($ch);
 
-    $result = runCurl($args);
-
-    $raw = $result['stdout'];
-
-    $headerPart = '';
-    $bodyPart = $raw;
-
-    $lastSeparator = strrpos($raw, "\r\n\r\n");
-    $separatorLength = 4;
-
-    if ($lastSeparator === false) {
-        $lastSeparator = strrpos($raw, "\n\n");
-        $separatorLength = 2;
+    if ($raw === false) {
+        return [
+            'status' => 0,
+            'body' => [],
+            'raw' => '',
+            'header' => '',
+            'curl_exit_code' => $errorNumber,
+            'curl_stderr' => $errorMessage,
+        ];
     }
 
-    if ($lastSeparator !== false) {
-        $headerPart = substr($raw, 0, $lastSeparator);
-        $bodyPart = substr($raw, $lastSeparator + $separatorLength);
-    }
-
-    $status = 0;
-
-    if (
-        preg_match_all(
-            '/HTTP\/\d(?:\.\d)?\s+(\d{3})/i',
-            $headerPart,
-            $matches
-        )
-    ) {
-        $lastIndex = count($matches[1]) - 1;
-        $status = (int) $matches[1][$lastIndex];
-    }
+    $headerPart = substr($raw, 0, $headerSize);
+    $bodyPart = substr($raw, $headerSize);
 
     $decoded = json_decode(
         $bodyPart,
@@ -480,8 +407,8 @@ function uploadFile(
         'body' => is_array($decoded) ? $decoded : [],
         'raw' => $bodyPart,
         'header' => $headerPart,
-        'curl_exit_code' => $result['exit_code'],
-        'curl_stderr' => $result['stderr'],
+        'curl_exit_code' => $errorNumber,
+        'curl_stderr' => $errorMessage,
     ];
 }
 
@@ -558,24 +485,6 @@ echo "Target test database: {$testDatabase}\n";
 echo "PHP binary: {$phpBinary}\n";
 echo "Temporary directory: {$tempDir}\n";
 echo str_repeat('=', 55) . "\n\n";
-
-/*
-|--------------------------------------------------------------------------
-| Verify curl
-|--------------------------------------------------------------------------
-*/
-
-$curlVersionResult = runCurl(['--version']);
-
-if ($curlVersionResult['exit_code'] !== 0) {
-    fwrite(
-        STDERR,
-        "ERROR: curl.exe is not available on PATH.\n"
-        . "stderr: " . $curlVersionResult['stderr'] . "\n"
-    );
-
-    exit(1);
-}
 
 /*
 |--------------------------------------------------------------------------
@@ -821,6 +730,103 @@ if (!is_dir($uploadTestDir)) {
 | (see the docblock at the top of this file), exactly as required by
 | phase3_validate.php and phase2_validate.php.
 */
+
+/*
+|--------------------------------------------------------------------------
+| Mandatory database identity check
+|--------------------------------------------------------------------------
+|
+| CRITICAL: this validator's own $pdo connection (used above to reset,
+| migrate and seed) and the externally-running HTTP application's
+| database connection are two COMPLETELY SEPARATE PDO connections
+| (App\Infrastructure\Database::connectTo() vs ::connection()). The
+| HTTP application was started as its own process, in its own
+| terminal, and reads DB_DATABASE purely from the .env file (or a
+| real shell environment variable) that was present when THAT process
+| started — see app/Infrastructure/Env.php + Database.php. It has NO
+| knowledge of, and is not affected by, this validator's --database
+| flag, its putenv() calls, or anything else this script does.
+|
+| If the running application's .env does not point DB_DATABASE at
+| $testDatabase, every single stateful assertion below (register,
+| login, challenge CRUD, files, hints, flags, audit logs) will
+| exercise a different, likely stale/unmigrated/unseeded database
+| and fail — not because of an application bug, but because of a
+| test-environment mismatch. Those failures are indistinguishable
+| from real bugs unless we check for this specifically, first.
+|
+| We prove the connection here by round-tripping through the HTTP
+| application itself: register a uniquely-named user through the
+| real /api/v1/auth/register endpoint (no application code changes
+| required), then look for that exact row using this validator's own
+| $pdo, which is explicitly connected to $testDatabase. If it is not
+| there, the HTTP application is provably talking to a different
+| database, and we stop immediately with an actionable diagnosis
+| instead of producing dozens of misleading downstream failures.
+*/
+
+echo "Verifying the running application is connected to '{$testDatabase}'...\n";
+
+$dbIdentityMarker = 'nca_dbcheck_' . bin2hex(random_bytes(6));
+$dbIdentityEmail = $dbIdentityMarker . '@example.test';
+
+$dbIdentityRegister = httpRequest(
+    'POST',
+    "{$baseUrl}/api/v1/auth/register",
+    [
+        'username' => $dbIdentityMarker,
+        'email' => $dbIdentityEmail,
+        'password' => 'correcthorse1',
+    ]
+);
+
+if ($dbIdentityRegister['status'] !== 201) {
+    fwrite(STDERR, "\n" . str_repeat('=', 55) . "\n");
+    fwrite(STDERR, "ERROR: Database identity check could not even register\n");
+    fwrite(STDERR, "a throwaway user through the running application.\n\n");
+    fwrite(STDERR, "HTTP status: {$dbIdentityRegister['status']}\n");
+    fwrite(STDERR, "Response:\n" . trim((string) $dbIdentityRegister['raw']) . "\n");
+    fwrite(STDERR, str_repeat('=', 55) . "\n");
+
+    exit(1);
+}
+
+$dbIdentityStmt = $pdo->prepare(
+    'SELECT COUNT(*) FROM users WHERE username = ?'
+);
+
+$dbIdentityStmt->execute([$dbIdentityMarker]);
+
+$dbIdentityFound = (int) $dbIdentityStmt->fetchColumn();
+
+if ($dbIdentityFound !== 1) {
+    fwrite(STDERR, "\n" . str_repeat('=', 55) . "\n");
+    fwrite(STDERR, "ERROR: Database identity mismatch detected.\n\n");
+    fwrite(STDERR, "This validator just registered a user through the running\n");
+    fwrite(STDERR, "application at {$baseUrl}, then looked for that exact user\n");
+    fwrite(STDERR, "in database '{$testDatabase}' (this validator's own\n");
+    fwrite(STDERR, "connection) — and did not find it.\n\n");
+    fwrite(STDERR, "This means the running application is NOT connected to\n");
+    fwrite(STDERR, "'{$testDatabase}'. It is connected to whatever DB_DATABASE\n");
+    fwrite(STDERR, "was set in its OWN .env file (or shell environment) at the\n");
+    fwrite(STDERR, "moment IT was started — this validator's --database flag\n");
+    fwrite(STDERR, "has no effect on that already-running process.\n\n");
+    fwrite(STDERR, "Fix: stop the running server, edit .env in the project\n");
+    fwrite(STDERR, "root so that:\n\n");
+    fwrite(STDERR, "  DB_DATABASE={$testDatabase}\n\n");
+    fwrite(STDERR, "then restart the server and re-run this validator:\n\n");
+    fwrite(
+        STDERR,
+        "  \"" . $phpBinary . "\" -S {$host}:{$port} -t "
+        . $root . DIRECTORY_SEPARATOR . "public "
+        . $root . DIRECTORY_SEPARATOR . "public" . DIRECTORY_SEPARATOR . "index.php\n\n"
+    );
+    fwrite(STDERR, str_repeat('=', 55) . "\n");
+
+    exit(1);
+}
+
+echo "Confirmed: the running application is writing to '{$testDatabase}'.\n\n";
 
 /*
 |--------------------------------------------------------------------------
@@ -2029,7 +2035,7 @@ $p3Command =
     . ' '
     . escapeshellarg($root . '/tests/phase3_validate.php')
     . ' --database=' . escapeshellarg($testDatabase)
-    . ' --port=' . escapeshellarg((string) $port)
+    . ' --base-url=' . escapeshellarg($baseUrl)
     . ' 2>&1';
 
 exec(

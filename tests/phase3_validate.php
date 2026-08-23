@@ -10,11 +10,34 @@ declare(strict_types=1);
  * IMPORTANT:
  * Start the PHP development server manually before running this test:
  *
- *   & "C:\xampp\php\php.exe" -S 127.0.0.1:8124 -t public
+ *   & "C:\xampp\php\php.exe" -S 127.0.0.1:8124 -t public public/index.php
  *
  * Then run:
  *
  *   & "C:\xampp\php\php.exe" tests\phase3_validate.php --database=nca_ctf_test
+ *
+ * Options:
+ *
+ *   --port=8124                       Port of the already-running server
+ *                                      (default: 8124).
+ *   --base-url=http://127.0.0.1:8124  Explicit base URL override. Takes
+ *                                      precedence over --port if supplied.
+ *   --database=nca_ctf_test           Test database name.
+ *
+ * CRITICAL — READ THIS:
+ * This validator's --database flag ONLY controls which database THIS
+ * SCRIPT resets/migrates/seeds/queries directly. It has NO effect on
+ * the already-running HTTP server above, which is a separate process
+ * that reads DB_DATABASE purely from its own .env file (or a real
+ * shell environment variable) at the moment IT was started. Before
+ * starting the server, make sure the project's .env contains:
+ *
+ *   DB_DATABASE=nca_ctf_test
+ *
+ * (matching whatever --database value you pass below). If it does
+ * not match, this validator will detect the mismatch during its
+ * mandatory database identity check and stop immediately with a
+ * clear diagnosis.
  *
  * The validator does NOT spawn its own PHP server.
  */
@@ -36,7 +59,7 @@ Env::load($root . '/.env');
 |--------------------------------------------------------------------------
 */
 
-$options = getopt('', ['database:', 'port:']);
+$options = getopt('', ['database:', 'port:', 'base-url:']);
 
 /*
  * Guard against accidentally deriving "..._test_test" when the
@@ -50,9 +73,13 @@ $defaultTestDatabase = str_ends_with($configuredDatabase, '_test')
 
 $testDatabase = $options['database'] ?? $defaultTestDatabase;
 
+$host = '127.0.0.1';
+
 $port = (int) ($options['port'] ?? 8124);
 
-$baseUrl = "http://127.0.0.1:{$port}";
+$baseUrl = isset($options['base-url'])
+    ? rtrim((string) $options['base-url'], '/')
+    : "http://{$host}:{$port}";
 
 $testStorage = $root
     . DIRECTORY_SEPARATOR
@@ -70,6 +97,17 @@ if (!is_dir($testStorage)) {
 
 $failures = [];
 $passes = 0;
+
+if (!extension_loaded('curl')) {
+    fwrite(
+        STDERR,
+        "ERROR: The PHP curl extension is not loaded.\n"
+        . "XAMPP ships this enabled by default under extension=curl\n"
+        . "in php.ini. Enable it and restart, then re-run.\n"
+    );
+
+    exit(1);
+}
 
 
 /*
@@ -96,9 +134,18 @@ function check(
 
 
 /**
- * Execute a curl HTTP request.
+ * Execute an HTTP request using PHP's native cURL extension.
  *
- * Uses the system curl executable and Windows-safe paths.
+ * Previously this spawned curl.exe as a child process via
+ * proc_open(). On at least one real Windows/XAMPP machine that
+ * consistently timed out (curl exit 28, 0 bytes) even though curl.exe
+ * run directly in a terminal, and the PHP dev server itself, both
+ * worked fine — consistent with security software or a proxy
+ * environment variable treating child-process-initiated network I/O
+ * differently from interactive terminal use. Using ext-curl performs
+ * the request from within this same PHP process, with no child
+ * process involved, sidestepping that class of problem entirely.
+ * XAMPP ships ext-curl enabled by default.
  */
 function httpRequest(
     string $method,
@@ -107,19 +154,20 @@ function httpRequest(
     ?string $cookieJar = null,
     array $headers = []
 ): array {
-    $curl = PHP_OS_FAMILY === 'Windows' ? 'curl.exe' : 'curl';
+    $ch = curl_init();
 
-    $args = [
-        '-sS',
-        '-i',
-        '-X',
-        $method,
-    ];
+    curl_setopt_array($ch, [
+        CURLOPT_URL => $url,
+        CURLOPT_CUSTOMREQUEST => $method,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HEADER => true,
+        CURLOPT_TIMEOUT => 15,
+        CURLOPT_CONNECTTIMEOUT => 5,
+        CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+        CURLOPT_FOLLOWLOCATION => false,
+    ]);
 
-    foreach ($headers as $header) {
-        $args[] = '-H';
-        $args[] = $header;
-    }
+    $requestHeaders = $headers;
 
     /*
      * API expects JSON request bodies.
@@ -137,11 +185,13 @@ function httpRequest(
             );
         }
 
-        $args[] = '-H';
-        $args[] = 'Content-Type: application/json';
+        $requestHeaders[] = 'Content-Type: application/json';
 
-        $args[] = '--data-raw';
-        $args[] = $json;
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
+    }
+
+    if ($requestHeaders !== []) {
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $requestHeaders);
     }
 
     /*
@@ -154,84 +204,31 @@ function httpRequest(
             mkdir($cookieDirectory, 0777, true);
         }
 
-        $args[] = '-c';
-        $args[] = $cookieJar;
-
-        $args[] = '-b';
-        $args[] = $cookieJar;
+        curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieJar);
+        curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieJar);
     }
 
-    /*
-     * Force IPv4 on Windows.
-     */
-    $args[] = '-4';
+    $raw = curl_exec($ch);
 
-    $args[] = $url;
+    $exitCode = curl_errno($ch);
+    $stderr = curl_error($ch);
+    $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $headerSize = (int) curl_getinfo($ch, CURLINFO_HEADER_SIZE);
 
-$command = array_merge([$curl], $args);
+    curl_close($ch);
 
-$descriptorSpec = [
-    0 => ['pipe', 'r'],
-    1 => ['pipe', 'w'],
-    2 => ['pipe', 'w'],
-];
-
-$process = proc_open(
-    $command,
-    $descriptorSpec,
-    $pipes
-);
-
-    if (!is_resource($process)) {
+    if ($raw === false) {
         return [
             'status' => 0,
             'body' => [],
             'raw' => '',
             'response_body' => '',
-            'stderr' => 'Unable to start curl.exe',
-            'exit_code' => -1,
+            'stderr' => $stderr !== '' ? $stderr : 'curl_exec() returned false',
+            'exit_code' => $exitCode !== 0 ? $exitCode : -1,
         ];
     }
 
-    fclose($pipes[0]);
-
-    $stdout = stream_get_contents($pipes[1]);
-    $stderr = stream_get_contents($pipes[2]);
-
-    fclose($pipes[1]);
-    fclose($pipes[2]);
-
-    $exitCode = proc_close($process);
-
-    $raw = $stdout ?: '';
-
-    /*
-     * Extract HTTP status.
-     */
-    $status = 0;
-
-    if (preg_match_all(
-        '/HTTP\/\d(?:\.\d)?\s+(\d{3})/i',
-        $raw,
-        $matches
-    )) {
-        $lastIndex = count($matches[1]) - 1;
-        $status = (int) $matches[1][$lastIndex];
-    }
-
-    /*
-     * Extract final response body.
-     */
-    $responseBody = $raw;
-
-    $parts = preg_split(
-        "/\r\n\r\n|\n\n|\r\r/",
-        $raw
-    );
-
-    if ($parts !== false && count($parts) > 1) {
-        $responseBody = (string) end($parts);
-    }
+    $responseBody = substr($raw, $headerSize);
 
     $decoded = json_decode($responseBody, true);
 
@@ -542,15 +539,85 @@ if ($health['status'] === 0) {
         echo $health['stderr'] . "\n";
     }
 
-    echo "\nStart the server manually in another terminal:\n\n";
+    echo "\nThis validator does NOT start its own server.\n";
+    echo "Start it manually in another terminal:\n\n";
     echo '  & "' . PHP_BINARY . '" -S 127.0.0.1:' .
         $port .
-        " -t public\n\n";
+        ' -t public public' . DIRECTORY_SEPARATOR . "index.php\n\n";
 
     exit(1);
 }
 
 echo "  HTTP server reachable (HTTP {$health['status']})\n\n";
+
+/*
+|--------------------------------------------------------------------------
+| Mandatory database identity check
+|--------------------------------------------------------------------------
+|
+| CRITICAL: this validator's own $pdo connection (used above to reset,
+| migrate and seed, via Database::connectTo()) and the externally
+| running HTTP application's database connection
+| (App\Infrastructure\Database::connection(), used by every
+| controller/repository) are two COMPLETELY SEPARATE PDO connections.
+| The HTTP application reads DB_DATABASE purely from its own .env file
+| (or a real shell environment variable) at the moment IT was started
+| — it has no knowledge of this validator's --database flag. If they
+| don't match, every stateful assertion below will silently exercise
+| a different database and fail in a way that looks like an
+| application bug but isn't. Prove they match before running anything
+| else, exactly like phase4_validate.php does.
+*/
+
+echo "Verifying the running application is connected to '{$testDatabase}'...\n";
+
+$dbIdentityMarker = 'nca_dbcheck_' . bin2hex(random_bytes(6));
+
+$dbIdentityRegister = httpRequest(
+    'POST',
+    "{$baseUrl}/api/v1/auth/register",
+    [
+        'username' => $dbIdentityMarker,
+        'email' => $dbIdentityMarker . '@example.test',
+        'password' => 'correcthorse1',
+    ]
+);
+
+if ($dbIdentityRegister['status'] !== 201) {
+    fwrite(STDERR, "\n" . str_repeat('=', 55) . "\n");
+    fwrite(STDERR, "ERROR: Database identity check could not even register\n");
+    fwrite(STDERR, "a throwaway user through the running application.\n\n");
+    fwrite(STDERR, "HTTP status: {$dbIdentityRegister['status']}\n");
+    fwrite(STDERR, "Response:\n" . trim((string) ($dbIdentityRegister['raw'] ?? '')) . "\n");
+    fwrite(STDERR, str_repeat('=', 55) . "\n");
+
+    exit(1);
+}
+
+$dbIdentityStmt = $pdo->prepare(
+    'SELECT COUNT(*) FROM users WHERE username = ?'
+);
+
+$dbIdentityStmt->execute([$dbIdentityMarker]);
+
+if ((int) $dbIdentityStmt->fetchColumn() !== 1) {
+    fwrite(STDERR, "\n" . str_repeat('=', 55) . "\n");
+    fwrite(STDERR, "ERROR: Database identity mismatch detected.\n\n");
+    fwrite(STDERR, "This validator just registered a user through the running\n");
+    fwrite(STDERR, "application at {$baseUrl}, then looked for that exact user\n");
+    fwrite(STDERR, "in database '{$testDatabase}' (this validator's own\n");
+    fwrite(STDERR, "connection) — and did not find it.\n\n");
+    fwrite(STDERR, "The running application is connected to a different\n");
+    fwrite(STDERR, "database than this validator expects. Fix: stop the\n");
+    fwrite(STDERR, "running server, set in .env:\n\n");
+    fwrite(STDERR, "  DB_DATABASE={$testDatabase}\n\n");
+    fwrite(STDERR, "then restart the server and re-run this validator.\n");
+    fwrite(STDERR, str_repeat('=', 55) . "\n");
+
+    exit(1);
+}
+
+echo "Confirmed: the running application is writing to '{$testDatabase}'.\n\n";
 
 
 /*
