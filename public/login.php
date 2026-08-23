@@ -1,6 +1,6 @@
 <?php
 $baseUrl = $GLOBALS['baseUrl'] ?? '/NCA-CTF/public';
-$from = isset($_GET['from']) ? $_GET['from'] : '/dashboard';
+$from = isset($_GET['from']) ? $_GET['from'] : '/dashboard.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">

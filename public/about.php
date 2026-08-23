@@ -1,4 +1,10 @@
 <?php
+// Start session FIRST - before ANY HTML output
+if (session_status() === PHP_SESSION_NONE) {
+    session_name('nca_ctf_session');
+    session_start();
+}
+
 $baseUrl = $GLOBALS['baseUrl'] ?? '/NCA-CTF/public';
 $currentPage = 'about';
 ?>
@@ -248,6 +254,7 @@ $currentPage = 'about';
     <!-- Include Footer -->
     <?php include __DIR__ . '/../resources/views/components/footer.php'; ?>
 
+    <script src="<?= $baseUrl ?>/assets/js/api.js"></script>
     <script src="<?= $baseUrl ?>/assets/js/home.js"></script>
 </body>
 </html>

@@ -812,3 +812,168 @@ button:focus-visible {
         min-width: 200px;
     }
 }
+
+
+
+
+/* ================================================================ */
+/* CHANGE PASSWORD MODAL (Global)                                   */
+/* ================================================================ */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+.modal {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    max-width: 480px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-bg-secondary);
+}
+
+.modal-header h2 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--color-text-primary);
+}
+
+.modal-header h2 i {
+    color: var(--color-accent-light);
+    margin-right: 0.6rem;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    font-size: 1.8rem;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 0.3rem;
+    transition: color 0.2s;
+}
+
+.modal-close:hover {
+    color: var(--color-text-primary);
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+/* Modal Form */
+#changePasswordForm .form-group {
+    margin-bottom: 1rem;
+}
+
+#changePasswordForm .form-group label {
+    display: block;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+    margin-bottom: 0.25rem;
+}
+
+#changePasswordForm .form-group input {
+    width: 100%;
+    padding: 0.6rem 0.9rem;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-primary);
+    font-size: 0.95rem;
+    font-family: inherit;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+#changePasswordForm .form-group input:focus {
+    outline: none;
+    border-color: var(--color-accent-light);
+    box-shadow: 0 0 0 3px var(--color-accent-glow);
+}
+
+#changePasswordForm .form-group input.error {
+    border-color: var(--color-danger);
+}
+
+#changePasswordForm .required-star {
+    color: var(--color-accent-light);
+    font-weight: 700;
+    font-size: 1rem;
+    margin-left: 0.1rem;
+}
+
+#changePasswordForm .error-message {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--color-danger);
+    min-height: 1.1em;
+    margin-top: 0.15rem;
+}
+
+#changePasswordForm .form-message {
+    padding: 0.6rem 0.9rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+    display: none;
+}
+
+#changePasswordForm .form-message.visible {
+    display: block;
+}
+
+#changePasswordForm .form-message.error {
+    background: rgba(244, 67, 54, 0.12);
+    border: 1px solid var(--color-danger);
+    color: var(--color-danger);
+}
+
+#changePasswordForm .form-message.success {
+    background: rgba(76, 175, 80, 0.12);
+    border: 1px solid var(--color-success);
+    color: var(--color-success);
+}
+
+#changePasswordForm .btn--full {
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 1rem;
+}
+
+#changePasswordForm .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+#changePasswordForm .btn-loader {
+    display: inline-block;
+    margin-left: 0.5rem;
+}

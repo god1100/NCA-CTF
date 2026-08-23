@@ -8,15 +8,32 @@
 
     var BASE_URL = window.NCA_CTF_BASE_URL || '';
 
+    // If BASE_URL is empty, try to detect it
+    if (!BASE_URL) {
+        // Get the current script's URL
+        var scripts = document.getElementsByTagName('script');
+        var currentScript = scripts[scripts.length - 1];
+        var scriptSrc = currentScript.src;
+        // Extract the base path (everything up to /assets/js/)
+        var match = scriptSrc.match(/^(.*?)\/assets\/js\//);
+        if (match) {
+            BASE_URL = match[1];
+        } else {
+            BASE_URL = '/NCA-CTF/public';
+        }
+        window.NCA_CTF_BASE_URL = BASE_URL;
+    }
+
+    console.log('🔍 API.js: BASE_URL =', BASE_URL);
+
     function url(path) {
         var cleanPath = path.startsWith('/') ? path.substring(1) : path;
+        // For API calls, we need to go through index.php
         return BASE_URL + '/index.php/' + cleanPath;
     }
 
-    // CSRF token stored in memory only (never localStorage/sessionStorage)
+    // CSRF token stored in memory only
     var csrfToken = null;
-
-    // Current authenticated user
     var currentUser = null;
 
     function getCsrfToken() {
@@ -56,7 +73,7 @@
 
         var options = {
             method: method,
-            credentials: 'include', // Required for session cookie
+            credentials: 'include',
             headers: headers
         };
 
@@ -65,10 +82,32 @@
         }
 
         var fullUrl = url(endpoint);
+        console.log('🔍 API Request:', fullUrl);
 
         try {
             var response = await fetch(fullUrl, options);
-            var responseData = await response.json();
+            var text = await response.text();
+
+            console.log('📦 API Response:', {
+                status: response.status,
+                body: text.substring(0, 200)
+            });
+
+            var responseData;
+            try {
+                if (text && text.trim() !== '') {
+                    responseData = JSON.parse(text);
+                } else {
+                    responseData = { success: false, message: 'Empty response from server' };
+                }
+            } catch (parseError) {
+                console.error('❌ Failed to parse JSON:', parseError);
+                responseData = {
+                    success: false,
+                    message: 'Invalid response from server',
+                    raw: text.substring(0, 500)
+                };
+            }
 
             // Handle CSRF token from response
             if (responseData.data && responseData.data.csrf_token) {
@@ -81,12 +120,7 @@
             }
 
             // Handle 401 Unauthorized - clear auth state
-            if (response.status === 401) {
-                clearAuthState();
-            }
-
-            // Handle 419 CSRF token invalid
-            if (response.status === 419) {
+            if (response.status === 401 || response.status === 419) {
                 clearAuthState();
             }
 
@@ -98,7 +132,7 @@
             };
 
         } catch (error) {
-            // Network error
+            console.error('❌ Network error:', error);
             return {
                 status: 0,
                 ok: false,
@@ -111,7 +145,6 @@
 
     // Public API methods
     window.NCA_API = {
-        // Authentication
         register: function (data) {
             return request('POST', '/api/v1/auth/register', data, false);
         },
@@ -121,11 +154,12 @@
         logout: function () {
             return request('POST', '/api/v1/auth/logout', null, true);
         },
+        changePassword: function (data) {
+            return request('POST', '/api/v1/auth/change-password', data, true);
+        },
         me: function () {
             return request('GET', '/api/v1/auth/me', null, true);
         },
-
-        // Getters
         getCsrfToken: getCsrfToken,
         getCurrentUser: getCurrentUser,
         setCsrfToken: setCsrfToken,
@@ -134,17 +168,12 @@
         isAuthenticated: function () {
             return currentUser !== null;
         },
-
-        // Helper
         url: url
+
     };
 
-    // Expose CSRF token getter for other scripts
     window.__nca_ctf = window.__nca_ctf || {};
     window.__nca_ctf.getCsrfToken = getCsrfToken;
     window.__nca_ctf.getCurrentUser = getCurrentUser;
-    window.__nca_ctf.isAuthenticated = function () {
-        return currentUser !== null;
-    };
 
 })();

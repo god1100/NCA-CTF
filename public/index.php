@@ -38,7 +38,7 @@ $config = require $baseDir . '/config/app.php';
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: strict-origin-when-cross-origin');
 header('X-Frame-Options: DENY');
-header("Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'");
+header("Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data:;");
 
 // --- Strict error handling ----------------------------------------------
 error_reporting(E_ALL);
@@ -48,27 +48,26 @@ ini_set('error_log', $baseDir . '/storage/logs/app.log');
 
 // --- Request dispatch -----------------------------------------------------
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+
 $requestUri = $_SERVER['REQUEST_URI'] ?? '/';
 
-// --- Strip base path from URI ---
-$basePathClean = rtrim($basePath, '/');
+// Remove query string
+$requestPath = parse_url($requestUri, PHP_URL_PATH) ?? '/';
 
-// Remove base path first
-if ($basePathClean !== '' && strpos($requestUri, $basePathClean) === 0) {
-    $requestUri = substr($requestUri, strlen($basePathClean));
+// Determine the public directory path from the current project.
+$publicPath = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/index.php'));
+$publicPath = rtrim($publicPath, '/');
+
+// Remove the public path from the beginning of the request.
+if ($publicPath !== '' && str_starts_with($requestPath, $publicPath)) {
+    $requestPath = substr($requestPath, strlen($publicPath));
 }
 
-// Remove query string if present
-if (strpos($requestUri, '?') !== false) {
-    $requestUri = substr($requestUri, 0, strpos($requestUri, '?'));
-}
+// Handle direct /index.php/... requests too.
+$requestPath = preg_replace('#^/index\.php#', '', $requestPath);
 
-// Remove /index.php if present
-$requestUri = preg_replace('#^/index\.php#', '', $requestUri);
-
-// Parse the URI to get just the path
-$uri = parse_url($requestUri, PHP_URL_PATH) ?? '/';
-$uri = '/' . ltrim($uri, '/');
+// Normalize URI.
+$uri = '/' . ltrim($requestPath ?: '/', '/');
 $uri = rtrim($uri, '/') ?: '/';
 
 // --- API routes ---
@@ -78,22 +77,6 @@ if (str_starts_with($uri, '/api/')) {
     $registerRoutes = require $baseDir . '/routes/api.php';
     $registerRoutes($router);
     $router->dispatch($method, $uri);
-    exit;
-}
-
-// --- Static pages ---
-
-// DASHBOARD ROUTE - Check BEFORE the switch
-// DEBUG
-echo "<!-- DEBUG: URI = " . $uri . " -->";
-if ($uri === '/dashboard') {
-    Session::start();
-    $userId = Session::get('auth_user_id');
-    if (!$userId) {
-        header('Location: ' . $baseUrl . '/login.php');
-        exit;
-    }
-    require $baseDir . '/resources/views/dashboard.php';
     exit;
 }
 
@@ -110,6 +93,9 @@ switch ($uri) {
         exit;
     case '/about':
         require $baseDir . '/public/about.php';
+        exit;
+    case '/dashboard':
+        require $baseDir . '/public/dashboard.php';
         exit;
     default:
         require $baseDir . '/resources/views/landing.php';

@@ -176,6 +176,9 @@ return static function (Router $router): void {
     $router->get('/api/v1/challenges/{id}/flag', static function (array $params): void {
         (new FlagController())->show($params);
     });
+    $router->post('/api/v1/auth/change-password', static function (): void {
+        (new \App\Controllers\PasswordController())->changePassword();
+    });
 
     // NOTE: GET /api/v1/challenges/{identifier} (single-segment
     // slug-or-id lookup) is registered LAST among GET routes so the more

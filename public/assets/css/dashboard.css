@@ -1,5 +1,6 @@
 /* ================================================================
    NCA CTF – Dashboard Styles
+   Matches homepage design system perfectly
    ================================================================ */
 
 /* ----- Dashboard Layout ----- */
@@ -54,11 +55,12 @@
     display: flex;
     align-items: center;
     gap: 1rem;
-    transition: border-color 0.2s;
+    transition: border-color 0.2s, transform 0.2s;
 }
 
 .stat-card:hover {
     border-color: var(--color-accent-light);
+    transform: translateY(-2px);
 }
 
 .stat-card__icon {
@@ -83,10 +85,11 @@
 
 .stat-card__label {
     display: block;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: var(--color-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    font-weight: 600;
 }
 
 .stat-card__value {
@@ -123,7 +126,7 @@
 }
 
 .card-header {
-    padding: 1.2rem 1.5rem;
+    padding: 1rem 1.5rem;
     border-bottom: 1px solid var(--color-border);
     background: var(--color-bg-secondary);
 }
@@ -137,7 +140,7 @@
 
 .card-header h2 i {
     color: var(--color-accent-light);
-    margin-right: 0.5rem;
+    margin-right: 0.6rem;
 }
 
 .card-body {
@@ -159,6 +162,7 @@
 .info-label {
     color: var(--color-text-muted);
     font-size: 0.85rem;
+    font-weight: 500;
 }
 
 .info-value {
@@ -173,8 +177,10 @@
 .help-text {
     color: var(--color-text-secondary);
     font-size: 0.95rem;
-    line-height: 1.6;
+    line-height: 1.7;
     margin: 0 0 1.2rem 0;
+    text-align: justify;
+    text-justify: inter-word;
 }
 
 .discord-btn {
@@ -184,40 +190,16 @@
     gap: 0.5rem;
     width: 100%;
     padding: 0.8rem;
-    margin-bottom: 1.2rem;
+    margin-bottom: 0.5rem;
 }
 
 .discord-btn i {
     font-size: 1.2rem;
 }
 
-.help-contacts {
-    background: var(--color-bg);
-    border-radius: var(--radius-sm);
-    padding: 1rem;
-}
-
-.contact-group {
-    display: flex;
-    justify-content: space-between;
-    padding: 0.3rem 0;
-}
-
-.contact-group:last-child {
-    border-bottom: none;
-}
-
-.contact-label {
-    color: var(--color-text-muted);
-    font-size: 0.85rem;
-}
-
-.contact-value {
-    color: var(--color-text-secondary);
-    font-size: 0.9rem;
-}
-
-/* ----- User Dropdown ----- */
+/* ================================================================ */
+/* USER DROPDOWN                                                    */
+/* ================================================================ */
 .navbar__user {
     position: relative;
 }
@@ -240,10 +222,6 @@
 .user-btn:hover {
     background: var(--color-surface);
     color: var(--color-text-primary);
-}
-
-.user-btn i {
-    font-size: 1.2rem;
 }
 
 .user-btn i.fa-user-circle {
@@ -338,10 +316,11 @@
     color: #ef5350;
 }
 
-/* ----- Responsive ----- */
+/* ================================================================ */
+/* RESPONSIVE                                                       */
+/* ================================================================ */
 @media (max-width: 992px) {
     .dashboard__stats {
-        grid-template-columns: repeat(3, 1fr);
         gap: 1rem;
     }
 }
@@ -363,16 +342,21 @@
     .dashboard__title {
         font-size: 1.4rem;
     }
+
+    .dashboard__welcome .btn {
+        width: 100%;
+        text-align: center;
+    }
+
+    .user-dropdown {
+        right: -1rem;
+        min-width: 200px;
+    }
 }
 
 @media (max-width: 480px) {
     .dashboard__stats {
         grid-template-columns: 1fr;
-    }
-
-    .dashboard__welcome .btn--large {
-        width: 100%;
-        text-align: center;
     }
 
     .info-row {
@@ -385,13 +369,18 @@
         padding-top: 0.1rem;
     }
 
-    .user-dropdown {
-        right: -1rem;
-        min-width: 200px;
+    .stat-card {
+        padding: 1rem;
+    }
+
+    .stat-card__value {
+        font-size: 1.5rem;
     }
 }
 
-/* ----- Accessibility ----- */
+/* ================================================================ */
+/* ACCESSIBILITY                                                    */
+/* ================================================================ */
 @media (prefers-reduced-motion: reduce) {
     * {
         animation-duration: 0.01ms !important;
@@ -403,4 +392,167 @@ a:focus-visible,
 button:focus-visible {
     outline: 2px solid var(--color-accent-light);
     outline-offset: 2px;
+}
+
+
+/* ================================================================ */
+/* CHANGE PASSWORD MODAL                                            */
+/* ================================================================ */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+.modal {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    max-width: 480px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-bg-secondary);
+}
+
+.modal-header h2 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--color-text-primary);
+}
+
+.modal-header h2 i {
+    color: var(--color-accent-light);
+    margin-right: 0.6rem;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    font-size: 1.8rem;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 0.3rem;
+    transition: color 0.2s;
+}
+
+.modal-close:hover {
+    color: var(--color-text-primary);
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+/* Modal Form */
+#changePasswordForm .form-group {
+    margin-bottom: 1rem;
+}
+
+#changePasswordForm .form-group label {
+    display: block;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+    margin-bottom: 0.25rem;
+}
+
+#changePasswordForm .form-group input {
+    width: 100%;
+    padding: 0.6rem 0.9rem;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-primary);
+    font-size: 0.95rem;
+    font-family: inherit;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+#changePasswordForm .form-group input:focus {
+    outline: none;
+    border-color: var(--color-accent-light);
+    box-shadow: 0 0 0 3px var(--color-accent-glow);
+}
+
+#changePasswordForm .form-group input.error {
+    border-color: var(--color-danger);
+}
+
+#changePasswordForm .required-star {
+    color: var(--color-accent-light);
+    font-weight: 700;
+    font-size: 1rem;
+    margin-left: 0.1rem;
+}
+
+#changePasswordForm .error-message {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--color-danger);
+    min-height: 1.1em;
+    margin-top: 0.15rem;
+}
+
+#changePasswordForm .form-message {
+    padding: 0.6rem 0.9rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+    display: none;
+}
+
+#changePasswordForm .form-message.visible {
+    display: block;
+}
+
+#changePasswordForm .form-message.error {
+    background: rgba(244, 67, 54, 0.12);
+    border: 1px solid var(--color-danger);
+    color: var(--color-danger);
+}
+
+#changePasswordForm .form-message.success {
+    background: rgba(76, 175, 80, 0.12);
+    border: 1px solid var(--color-success);
+    color: var(--color-success);
+}
+
+#changePasswordForm .btn--full {
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 1rem;
+}
+
+#changePasswordForm .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+#changePasswordForm .btn-loader {
+    display: inline-block;
+    margin-left: 0.5rem;
 }

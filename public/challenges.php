@@ -1,3 +1,8 @@
+<?php
+
+$baseUrl = $GLOBALS['baseUrl'] ?? '/NCA-CTF/public';
+$currentPage = 'challenges';
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,27 +10,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Challenges — NCA Batch 4 CTF</title>
     <meta name="description" content="Browse NCA Batch 4 CTF challenges">
-    <link rel="stylesheet" href="/assets/css/style.css">
-    <link rel="stylesheet" href="/assets/css/challenges.css">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+    <script>
+        window.NCA_CTF_BASE_URL = '<?= $baseUrl ?>';
+    </script>
+
+    <link rel="stylesheet" href="<?= $baseUrl ?>/assets/css/style.css">
+    <link rel="stylesheet" href="<?= $baseUrl ?>/assets/css/home.css">
+    <link rel="stylesheet" href="<?= $baseUrl ?>/assets/css/challenges.css">
 </head>
 <body>
-    <header class="topbar">
-        <div class="topbar__brand">
-            <span class="brand__nca">NCA</span>
-            <span class="brand__batch">BATCH 4</span>
-            <span class="brand__ctf">CTF</span>
-        </div>
-        <span class="badge badge--info">Phase 4 &middot; Challenges</span>
-    </header>
+
+    <!-- Include Header -->
+    <?php include __DIR__ . '/../resources/views/components/header.php'; ?>
 
     <main class="challenges-page">
-        <div id="auth-notice" class="challenges-page__notice" hidden>
-            <p>You need to be logged in to browse challenges. Use the
-            <code>/api/v1/auth/login</code> endpoint, or if you're
-            testing manually, log in first and then reload this page.</p>
-        </div>
-
-        <div id="challenges-app" hidden>
+        <div class="container">
             <h1 class="challenges-page__title">Challenges</h1>
 
             <div class="filters">
@@ -57,14 +62,13 @@
                 <button class="btn" id="next-page">Next</button>
             </div>
         </div>
-
-        <div id="challenge-detail" class="challenge-detail" hidden></div>
     </main>
 
-    <footer class="footer">
-        <p>NCA Batch 4 Private CTF Platform &mdash; Internal training use only.</p>
-    </footer>
+    <!-- Include Footer -->
+    <?php include __DIR__ . '/../resources/views/components/footer.php'; ?>
 
-    <script src="/assets/js/challenges.js"></script>
+    <script src="<?= $baseUrl ?>/assets/js/api.js"></script>
+    <script src="<?= $baseUrl ?>/assets/js/home.js"></script>
+    <script src="<?= $baseUrl ?>/assets/js/challenges.js"></script>
 </body>
 </html>

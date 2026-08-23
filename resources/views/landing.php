@@ -1,9 +1,9 @@
 <?php
+
+
 $baseUrl = $GLOBALS['baseUrl'] ?? '';
+$currentPage = 'home';
 ?>
-<script>
-    window.NCA_CTF_BASE_URL = '<?= $baseUrl ?>';
-</script>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -18,7 +18,6 @@ $baseUrl = $GLOBALS['baseUrl'] ?? '';
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
     <script>
-        // This makes the base URL available to all JavaScript
         window.NCA_CTF_BASE_URL = '<?= $baseUrl ?>';
     </script>
 
@@ -27,6 +26,9 @@ $baseUrl = $GLOBALS['baseUrl'] ?? '';
 </head>
 <body>
 
+    <!-- ============================================================== -->
+    <!-- HEADER (Universal)                                             -->
+    <!-- ============================================================== -->
     <?php include __DIR__ . '/components/header.php'; ?>
 
     <!-- ============================================================== -->
@@ -123,9 +125,14 @@ $baseUrl = $GLOBALS['baseUrl'] ?? '';
         </div>
     </section>
 
+    <!-- ============================================================== -->
+    <!-- FOOTER (Universal)                                             -->
+    <!-- ============================================================== -->
+    <?php include __DIR__ . '/components/footer.php'; ?>
 
-     <?php include __DIR__ . '/components/footer.php'; ?>
-
+    <!-- ============================================================== -->
+    <!-- JAVASCRIPT                                                     -->
+    <!-- ============================================================== -->
     <script src="<?= $baseUrl ?>/assets/js/api.js"></script>
     <script src="<?= $baseUrl ?>/assets/js/home.js"></script>
 </body>

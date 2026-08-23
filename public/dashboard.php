@@ -1,8 +1,11 @@
 <?php
-$baseUrl = $GLOBALS['baseUrl'] ?? '';
+
+$baseUrl = '/NCA-CTF/public';
+$currentPage = 'dashboard';
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -19,61 +22,16 @@ $baseUrl = $GLOBALS['baseUrl'] ?? '';
     </script>
 
     <link rel="stylesheet" href="<?= $baseUrl ?>/assets/css/style.css">
+    <link rel="stylesheet" href="<?= $baseUrl ?>/assets/css/home.css">
     <link rel="stylesheet" href="<?= $baseUrl ?>/assets/css/dashboard.css">
 </head>
+
 <body>
 
     <!-- ============================================================== -->
-    <!-- NAVIGATION                                                     -->
+    <!-- HEADER (Universal)                                             -->
     <!-- ============================================================== -->
-    <nav class="navbar" role="navigation" aria-label="Main navigation">
-        <div class="navbar__container">
-            <div class="navbar__brand">
-                <a href="<?= $baseUrl ?>/" class="navbar__logo-link">
-                    <img src="<?= $baseUrl ?>/assets/images/NCA-logo.jpg" alt="NCA CTF" class="navbar__logo" width="40" height="40">
-                    <span class="navbar__brand-text">NCA <span class="brand__ctf">CTF</span></span>
-                </a>
-            </div>
-
-            <button class="navbar__toggle" id="navToggle" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar__toggle-icon"></span>
-                <span class="navbar__toggle-icon"></span>
-                <span class="navbar__toggle-icon"></span>
-            </button>
-
-            <div class="navbar__menu" id="navMenu">
-                <ul class="navbar__links">
-                    <li><a href="<?= $baseUrl ?>/challenges.php" class="active">Challenges</a></li>
-                    <li><a href="<?= $baseUrl ?>/categories.php">Categories</a></li>
-                    <li><a href="<?= $baseUrl ?>/leaderboard.php">Leaderboard</a></li>
-                </ul>
-                <div class="navbar__user" id="navUser">
-                    <button class="user-btn" id="userMenuBtn" aria-expanded="false" aria-label="User menu">
-                        <i class="fas fa-user-circle"></i>
-                        <span id="usernameDisplay">Loading...</span>
-                        <i class="fas fa-chevron-down"></i>
-                    </button>
-                    <div class="user-dropdown" id="userDropdown" role="menu">
-                        <div class="dropdown-header">
-                            <strong id="dropdownUsername">Loading...</strong>
-                            <span id="dropdownRole">participant</span>
-                        </div>
-                        <div class="dropdown-divider"></div>
-                        <a href="<?= $baseUrl ?>/dashboard" class="dropdown-item" role="menuitem">
-                            <i class="fas fa-tachometer-alt"></i> Dashboard
-                        </a>
-                        <a href="#" class="dropdown-item" id="changePasswordBtn" role="menuitem">
-                            <i class="fas fa-key"></i> Change Password
-                        </a>
-                        <div class="dropdown-divider"></div>
-                        <a href="#" class="dropdown-item dropdown-item-danger" id="logoutBtn" role="menuitem">
-                            <i class="fas fa-sign-out-alt"></i> Logout
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </nav>
+    <?php include __DIR__ . '/../resources/views/components/header.php'; ?>
 
     <!-- ============================================================== -->
     <!-- DASHBOARD CONTENT                                              -->
@@ -83,10 +41,10 @@ $baseUrl = $GLOBALS['baseUrl'] ?? '';
             <!-- Welcome Section -->
             <div class="dashboard__welcome">
                 <div>
-                    <h1 class="dashboard__title" id="dashboardTitle">Welcome back, <span id="welcomeUsername">User</span></h1>
+                    <h1 class="dashboard__title">Welcome back, <span id="welcomeUsername">User</span></h1>
                     <p class="dashboard__subtitle">Ready to continue the challenge?</p>
                 </div>
-                <a href="<?= $baseUrl ?>/challenges.php" class="btn btn--primary btn--large">
+                <a href="<?= $baseUrl ?>/challenges.php" class="btn btn--primary">
                     <i class="fas fa-flag"></i> Continue Challenges
                 </a>
             </div>
@@ -157,38 +115,27 @@ $baseUrl = $GLOBALS['baseUrl'] ?? '';
                             <span class="info-label">Member Since</span>
                             <span class="info-value" id="infoCreated">—</span>
                         </div>
-                        <div class="info-row">
-                            <span class="info-label">Last Login</span>
-                            <span class="info-value" id="infoLastLogin">—</span>
-                        </div>
                     </div>
                 </div>
 
-                <!-- Help Section -->
+                <!-- Join NCA Committee Section -->
                 <div class="dashboard__card">
                     <div class="card-header">
-                        <h2><i class="fas fa-life-ring"></i> Need Help?</h2>
+                        <h2><i class="fas fa-users"></i> Join NCA Committee</h2>
                     </div>
                     <div class="card-body">
                         <p class="help-text">
-                            Forgot your password or having account problems?<br>
-                            Contact an NCA moderator through our Discord server.
+                            Connect with the NCA community, get involved in cybersecurity events,
+                            and collaborate with fellow security enthusiasts.
                         </p>
 
                         <a href="https://discord.gg/jgrpYzMrc" target="_blank" rel="noopener noreferrer" class="btn btn--primary btn--full discord-btn">
                             <i class="fab fa-discord"></i> Join NCA Discord
                         </a>
 
-                        <div class="help-contacts">
-                            <div class="contact-group">
-                                <span class="contact-label">Moderators:</span>
-                                <span class="contact-value">godxpromise, k2106472</span>
-                            </div>
-                            <div class="contact-group">
-                                <span class="contact-label">CEO:</span>
-                                <span class="contact-value">zeroair41</span>
-                            </div>
-                        </div>
+                        <p style="color: var(--color-text-muted); font-size: 0.85rem; margin-top: 1rem; text-align: center;">
+                            Be part of Nepal's active cybersecurity community.
+                        </p>
                     </div>
                 </div>
             </div>
@@ -196,25 +143,16 @@ $baseUrl = $GLOBALS['baseUrl'] ?? '';
     </main>
 
     <!-- ============================================================== -->
-    <!-- FOOTER                                                         -->
+    <!-- FOOTER (Universal)                                             -->
     <!-- ============================================================== -->
-    <footer class="footer">
-        <div class="container footer__container">
-            <div class="footer__brand">
-                <img src="<?= $baseUrl ?>/assets/images/NCA-logo.jpg" alt="NCA CTF" width="28" height="28">
-                <span class="footer__brand-text">NCA <span class="brand__ctf">CTF</span></span>
-                <span class="footer__tagline">| Batch 4</span>
-            </div>
-            <div class="footer__copyright">
-                &copy; 2026 <strong>NCA@Nepal</strong>
-            </div>
-        </div>
-    </footer>
+    <?php include __DIR__ . '/../resources/views/components/footer.php'; ?>
 
     <!-- ============================================================== -->
     <!-- JAVASCRIPT                                                     -->
     <!-- ============================================================== -->
     <script src="<?= $baseUrl ?>/assets/js/api.js"></script>
+    <script src="<?= $baseUrl ?>/assets/js/home.js"></script>
     <script src="<?= $baseUrl ?>/assets/js/dashboard.js"></script>
 </body>
+
 </html>

@@ -1,28 +1,24 @@
 /**
  * NCA CTF – Homepage Behaviors
- * Includes session restoration via /api/v1/auth/me
  */
 
 (function () {
     'use strict';
 
     var BASE_URL = window.NCA_CTF_BASE_URL || '';
-
-    // If BASE_URL is empty, use a fallback
     if (!BASE_URL) {
         BASE_URL = '/NCA-CTF/public';
         window.NCA_CTF_BASE_URL = BASE_URL;
     }
 
-    // Helper to build correct URLs
-    function url(path) {
-        var cleanPath = path.startsWith('/') ? path.substring(1) : path;
-        return BASE_URL + '/' + cleanPath;
-    }
-
     var navToggle = document.getElementById('navToggle');
     var navMenu = document.getElementById('navMenu');
     var navActions = document.getElementById('navActions');
+
+    if (!navActions) {
+        console.warn('navActions element not found');
+        return;
+    }
 
     // ---- Mobile menu toggle ----
     if (navToggle) {
@@ -35,12 +31,6 @@
 
     // ---- Authentication state ----
     async function loadAuthState() {
-        // Check if navActions exists
-        if (!navActions) {
-            console.warn('navActions element not found');
-            return;
-        }
-
         try {
             var result = await window.NCA_API.me();
 
@@ -51,9 +41,7 @@
                     return;
                 }
             }
-
             setUnauthenticatedNav();
-
         } catch (_) {
             setUnauthenticatedNav();
         }
@@ -73,8 +61,11 @@
                         <span>${user.role || 'participant'}</span>
                     </div>
                     <div class="dropdown-divider"></div>
-                   <a href="${BASE_URL}/dashboard" class="dropdown-item" role="menuitem">
+                    <a href="${BASE_URL}/dashboard.php" class="dropdown-item" role="menuitem">
                         <i class="fas fa-tachometer-alt"></i> Dashboard
+                    </a>
+                    <a href="#" class="dropdown-item" id="changePasswordBtn" role="menuitem">
+                        <i class="fas fa-key"></i> Change Password
                     </a>
                     <div class="dropdown-divider"></div>
                     <a href="#" class="dropdown-item dropdown-item-danger" id="logoutBtn" role="menuitem">
@@ -84,7 +75,19 @@
             </div>
         `;
 
-        // Add dropdown toggle
+        setupUserDropdown();
+        setupLogout();
+        setupChangePassword();
+    }
+
+    function setUnauthenticatedNav() {
+        navActions.innerHTML = `
+            <a href="${BASE_URL}/login.php" class="btn btn--secondary">Login</a>
+            <a href="${BASE_URL}/register.php" class="btn btn--primary">Register</a>
+        `;
+    }
+
+    function setupUserDropdown() {
         var userMenuBtn = document.getElementById('userMenuBtn');
         var userDropdown = document.getElementById('userDropdown');
 
@@ -97,45 +100,117 @@
             });
         }
 
-        // Close dropdown when clicking outside
         document.addEventListener('click', function () {
             if (userDropdown) userDropdown.classList.remove('open');
             if (userMenuBtn) userMenuBtn.setAttribute('aria-expanded', 'false');
         });
+    }
 
-        // Logout
+    function setupLogout() {
         var logoutBtn = document.getElementById('logoutBtn');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', async function (e) {
                 e.preventDefault();
                 try {
-                    var result = await window.NCA_API.logout();
+                    await window.NCA_API.logout();
                     window.NCA_API.clearAuthState();
                     window.location.href = BASE_URL + '/';
                 } catch (_) {
-                    window.NCA_API.clearAuthState();
                     window.location.href = BASE_URL + '/';
                 }
             });
         }
     }
 
-    function setUnauthenticatedNav() {
-        navActions.innerHTML = `
-            <a href="${BASE_URL}/login.php" class="btn btn--secondary">Login</a>
-            <a href="${BASE_URL}/register.php" class="btn btn--primary">Register</a>
-        `;
+    // ---- Change Password - Open Modal ----
+    function setupChangePassword() {
+        var changePasswordBtn = document.getElementById('changePasswordBtn');
+        if (changePasswordBtn) {
+            changePasswordBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                openChangePasswordModal();
+            });
+        }
+    }
+
+    // ---- Global Modal Functions ----
+    window.openChangePasswordModal = function() {
+        var modal = document.getElementById('changePasswordModal');
+        if (!modal) {
+            alert('Password changes are currently handled by NCA moderators.\n\nPlease contact a moderator through Discord for password assistance.');
+            return;
+        }
+        modal.classList.add('active');
+        
+        // Reset form
+        var form = document.getElementById('changePasswordForm');
+        if (form) form.reset();
+        
+        document.querySelectorAll('#changePasswordForm .error-message').forEach(function(el) {
+            el.textContent = '';
+        });
+        document.querySelectorAll('#changePasswordForm input.error').forEach(function(el) {
+            el.classList.remove('error');
+        });
+        
+        var message = document.getElementById('passwordFormMessage');
+        if (message) {
+            message.classList.remove('visible', 'error', 'success');
+            message.textContent = '';
+        }
+        
+        var submitBtn = document.getElementById('changePasswordSubmit');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.querySelector('.btn-text').textContent = 'Update Password';
+            submitBtn.querySelector('.btn-loader').style.display = 'none';
+        }
+        
+        var currentPassword = document.getElementById('currentPassword');
+        if (currentPassword) currentPassword.focus();
+    };
+
+    window.closeChangePasswordModal = function() {
+        var modal = document.getElementById('changePasswordModal');
+        if (modal) modal.classList.remove('active');
+    };
+
+    // ---- Modal Close Events ----
+    function setupModalEvents() {
+        // Close button
+        var closeBtn = document.getElementById('closeModalBtn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function() {
+                window.closeChangePasswordModal();
+            });
+        }
+
+        // Click outside modal
+        var modalOverlay = document.getElementById('changePasswordModal');
+        if (modalOverlay) {
+            modalOverlay.addEventListener('click', function(e) {
+                if (e.target === modalOverlay) {
+                    window.closeChangePasswordModal();
+                }
+            });
+        }
+
+        // ESC key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                window.closeChangePasswordModal();
+            }
+        });
     }
 
     // ---- Init ----
     function init() {
-        // Wait for API to be loaded
         if (typeof window.NCA_API === 'undefined') {
-            console.warn('NCA_API not loaded, retrying...');
-            setTimeout(init, 500);
+            setTimeout(init, 200);
             return;
         }
         loadAuthState();
+        setupModalEvents();
     }
 
     if (document.readyState === 'loading') {

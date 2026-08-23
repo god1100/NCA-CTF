@@ -119,7 +119,7 @@
 
                 setTimeout(function () {
                     // Redirect to dashboard route (not .php file)
-                    window.location.href = BASE_URL + '/dashboard';
+                   window.location.href = BASE_URL + '/dashboard.php';
                 }, 800);
 
             } else if (result.status === 401) {
