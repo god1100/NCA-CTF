@@ -1,188 +1,286 @@
 <?php
-$pageTitle = 'Dashboard';
-$currentPage = 'dashboard';
 
-?>
+declare(strict_types=1);
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+/**
+ * NCA Batch 4 Private CTF — Front Controller
+ */
 
-    <meta
-        name="csrf-token"
-        content="<?php echo $_SESSION['csrf_token'] ?? ''; ?>"
-    >
+$baseDir = dirname(__DIR__);
 
-    <title>Admin Dashboard - NCA CTF</title>
+/*
+|--------------------------------------------------------------------------
+| Determine base URL
+|--------------------------------------------------------------------------
+*/
 
-    <link
-        rel="stylesheet"
-        href="/NCA-CTF/public/assets/css/style.css"
-    >
+$protocol = (
+    isset($_SERVER['HTTPS']) &&
+    $_SERVER['HTTPS'] === 'on'
+) ? 'https://' : 'http://';
 
-    <link
-        rel="stylesheet"
-        href="/NCA-CTF/public/admin/assets/css/admin.css"
-    >
-</head>
+$host = $_SERVER['HTTP_HOST'] ?? 'localhost';
 
-<body class="admin-body">
+$scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
 
-    <!-- Sidebar -->
-    <aside
-        class="admin-sidebar"
-        id="adminSidebar"
-    >
+$basePath = rtrim(
+    dirname($scriptName),
+    '/\\'
+);
 
-        <div class="admin-sidebar-brand">
+$baseUrl = $protocol . $host . $basePath;
 
-            <img
-                src="/NCA-CTF/public/assets/images/NCA-logo.jpg"
-                alt="NCA Logo"
-            >
-
-            <div class="admin-sidebar-brand-text">
-
-                <span class="brand-nca">
-                    NCA
-                </span>
-
-                <span class="brand-ctf">
-                    CTF Administration
-                </span>
-
-            </div>
-
-        </div>
-
-        <nav class="admin-sidebar-nav">
-
-            <div class="nav-label">
-                Navigation
-            </div>
-
-            <a
-                href="/NCA-CTF/public/admin/index.php"
-                class="<?php echo $currentPage === 'dashboard' ? 'active' : ''; ?>"
-            >
-                <span class="nav-icon">📊</span>
-                Dashboard
-            </a>
-
-            <a
-                href="/NCA-CTF/public/admin/challenges.php"
-                class="<?php echo $currentPage === 'challenges' ? 'active' : ''; ?>"
-            >
-                <span class="nav-icon">🏆</span>
-                Challenges
-            </a>
-
-            <div class="nav-divider"></div>
-
-            <a
-                href="#"
-                id="adminLogoutBtn"
-                class="nav-logout"
-            >
-                <span class="nav-icon">🚪</span>
-                Logout
-            </a>
-
-        </nav>
-
-    </aside>
+/*
+ * Make base URL available to views.
+ */
+$GLOBALS['baseUrl'] = $baseUrl;
 
 
-    <!-- Mobile overlay -->
-    <div
-        class="admin-sidebar-overlay"
-        id="adminSidebarOverlay"
-    ></div>
+/*
+|--------------------------------------------------------------------------
+| Autoloading
+|--------------------------------------------------------------------------
+*/
+
+if (is_file($baseDir . '/vendor/autoload.php')) {
+
+    require $baseDir . '/vendor/autoload.php';
+
+} else {
+
+    require $baseDir . '/app/Infrastructure/Autoloader.php';
+
+    \App\Infrastructure\Autoloader::register(
+        $baseDir . '/app'
+    );
+}
 
 
-    <!-- Mobile toggle -->
-    <button
-        class="admin-sidebar-toggle"
-        id="adminSidebarToggle"
-        aria-label="Toggle sidebar"
-    >
-        ☰
-    </button>
+use App\Infrastructure\Env;
+use App\Infrastructure\Router;
+use App\Infrastructure\Session;
 
 
-    <!-- Main content -->
-    <main class="admin-main">
+/*
+|--------------------------------------------------------------------------
+| Environment
+|--------------------------------------------------------------------------
+*/
 
-        <header class="admin-header">
+Env::load($baseDir . '/.env');
 
-            <div class="admin-header-title">
-
-                <h1>
-                    Dashboard
-                </h1>
-
-                <p class="subtitle">
-                    NCA CTF Administration
-                </p>
-
-            </div>
+$config = require $baseDir . '/config/app.php';
 
 
-            <div class="admin-header-user">
+/*
+|--------------------------------------------------------------------------
+| Security Headers
+|--------------------------------------------------------------------------
+*/
 
-                <span
-                    class="user-role"
-                    id="adminUserRole"
-                >
-                    Loading...
-                </span>
+header('X-Content-Type-Options: nosniff');
 
-                <span
-                    class="user-name"
-                    id="adminUserName"
-                >
-                    Loading...
-                </span>
+header(
+    'Referrer-Policy: strict-origin-when-cross-origin'
+);
 
-                <span
-                    class="user-avatar"
-                    id="adminUserAvatar"
-                >
-                    U
-                </span>
+header('X-Frame-Options: DENY');
 
-            </div>
-
-        </header>
+header(
+    "Content-Security-Policy: " .
+    "default-src 'self'; " .
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; " .
+    "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; " .
+    "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; " .
+    "img-src 'self' data:;"
+);
 
 
-        <div
-            class="admin-content"
-            id="adminContent"
-        >
+/*
+|--------------------------------------------------------------------------
+| Error Handling
+|--------------------------------------------------------------------------
+*/
 
-            <!-- Dashboard content will be rendered by JavaScript -->
+error_reporting(E_ALL);
 
-            <div class="admin-loading">
+ini_set(
+    'display_errors',
+    $config['debug'] ? '1' : '0'
+);
 
-                <div class="spinner"></div>
+ini_set('log_errors', '1');
 
-                Loading dashboard...
-
-            </div>
-
-        </div>
-
-    </main>
+ini_set(
+    'error_log',
+    $baseDir . '/storage/logs/app.log'
+);
 
 
-    <script src="/NCA-CTF/public/assets/js/api.js"></script>
+/*
+|--------------------------------------------------------------------------
+| Request Information
+|--------------------------------------------------------------------------
+*/
 
-    <script src="/NCA-CTF/public/admin/assets/js/admin.js"></script>
+$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
-    <script src="/NCA-CTF/public/admin/assets/js/dashboard.js"></script>
+$requestUri = $_SERVER['REQUEST_URI'] ?? '/';
 
-</body>
-</html>
+/*
+ * Remove query string.
+ */
+$requestPath = parse_url(
+    $requestUri,
+    PHP_URL_PATH
+) ?? '/';
+
+
+/*
+|--------------------------------------------------------------------------
+| Determine public directory
+|--------------------------------------------------------------------------
+*/
+
+$publicPath = str_replace(
+    '\\',
+    '/',
+    dirname(
+        $_SERVER['SCRIPT_NAME'] ?? '/index.php'
+    )
+);
+
+$publicPath = rtrim(
+    $publicPath,
+    '/'
+);
+
+
+/*
+|--------------------------------------------------------------------------
+| Remove public path
+|--------------------------------------------------------------------------
+*/
+
+if (
+    $publicPath !== '' &&
+    str_starts_with($requestPath, $publicPath)
+) {
+
+    $requestPath = substr(
+        $requestPath,
+        strlen($publicPath)
+    );
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Handle direct /index.php/... requests
+|--------------------------------------------------------------------------
+*/
+
+$requestPath = preg_replace(
+    '#^/index\.php#',
+    '',
+    $requestPath
+);
+
+
+/*
+|--------------------------------------------------------------------------
+| Normalize URI
+|--------------------------------------------------------------------------
+*/
+
+$uri = '/' . ltrim(
+    $requestPath ?: '/',
+    '/'
+);
+
+$uri = rtrim(
+    $uri,
+    '/'
+) ?: '/';
+
+
+/*
+|--------------------------------------------------------------------------
+| API Routes
+|--------------------------------------------------------------------------
+*/
+
+if (str_starts_with($uri, '/api/')) {
+
+    Session::start();
+
+    $router = new Router();
+
+    $registerRoutes = require $baseDir . '/routes/api.php';
+
+    $registerRoutes($router);
+
+    $router->dispatch(
+        $method,
+        $uri
+    );
+
+    exit;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Frontend Routes
+|--------------------------------------------------------------------------
+*/
+
+switch ($uri) {
+
+    case '/challenges':
+
+        require $baseDir .
+            '/resources/views/challenges.php';
+
+        exit;
+
+
+    case '/login':
+
+        require $baseDir .
+            '/public/login.php';
+
+        exit;
+
+
+    case '/register':
+
+        require $baseDir .
+            '/public/register.php';
+
+        exit;
+
+
+    case '/about':
+
+        require $baseDir .
+            '/public/about.php';
+
+        exit;
+
+
+    case '/dashboard':
+
+        require $baseDir .
+            '/public/dashboard.php';
+
+        exit;
+
+
+    default:
+
+        require $baseDir .
+            '/resources/views/landing.php';
+
+        exit;
+}

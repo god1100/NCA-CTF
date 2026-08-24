@@ -1,8 +1,8 @@
- 
+
 // public/admin/assets/js/dashboard.js
 // Admin Dashboard
 
-(function() {
+(function () {
     'use strict';
 
     const content = document.getElementById('adminContent');
@@ -21,13 +21,17 @@
             `;
 
             // Fetch recent challenges (limit 5)
-            const response = await fetch('/api/v1/challenges?limit=5&page=1', {
-                method: 'GET',
-                credentials: 'include',
-                headers: {
-                    'Accept': 'application/json'
+            const response = await fetch(
+                (window.NCA_CTF_BASE_URL || '/NCA-CTF/public') +
+                '/api/v1/challenges?limit=5&page=1',
+                {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
                 }
-            });
+            );
 
             if (!response.ok) {
                 throw new Error(`Failed to load challenges: ${response.status}`);
@@ -37,14 +41,20 @@
             const challenges = data.data || [];
 
             // Also fetch categories count for some context
-            const catResponse = await fetch('/api/v1/categories', {
-                method: 'GET',
-                credentials: 'include',
-                headers: {
-                    'Accept': 'application/json'
+            const catResponse = await fetch(
+                (window.NCA_CTF_BASE_URL || '/NCA-CTF/public') +
+                '/api/v1/categories',
+                {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
                 }
-            });
-            const catData = catResponse.ok ? catData = await catResponse.json() : { data: [] };
+            );
+            const catData = catResponse.ok
+                ? await catResponse.json()
+                : { data: [] };
             const categories = catData.data || [];
 
             // Render dashboard
@@ -165,18 +175,18 @@
                 loadDashboard();
             } else {
                 // Listen for auth ready event
-                document.addEventListener('admin:authReady', function(e) {
+                document.addEventListener('admin:authReady', function (e) {
                     if (e.detail.authorized) {
                         loadDashboard();
                     }
                 });
             }
         } else {
-            document.addEventListener('DOMContentLoaded', function() {
+            document.addEventListener('DOMContentLoaded', function () {
                 if (window.Admin && window.Admin.isAuthorized()) {
                     loadDashboard();
                 } else {
-                    document.addEventListener('admin:authReady', function(e) {
+                    document.addEventListener('admin:authReady', function (e) {
                         if (e.detail.authorized) {
                             loadDashboard();
                         }

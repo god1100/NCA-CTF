@@ -6,7 +6,7 @@
 (function () {
     'use strict';
 
-    var BASE_URL = window.NCA_CTF_BASE_URL || '';
+    var BASE_URL = window.NCA_CTF_BASE_URL || '/NCA-CTF/public';
 
     // If BASE_URL is empty, try to detect it
     if (!BASE_URL) {
@@ -27,9 +27,11 @@
     console.log('🔍 API.js: BASE_URL =', BASE_URL);
 
     function url(path) {
-        var cleanPath = path.startsWith('/') ? path.substring(1) : path;
-        // For API calls, we need to go through index.php
-        return BASE_URL + '/index.php/' + cleanPath;
+        var cleanPath = path.startsWith('/')
+            ? path.substring(1)
+            : path;
+
+        return BASE_URL + '/' + cleanPath;
     }
 
     // CSRF token stored in memory only

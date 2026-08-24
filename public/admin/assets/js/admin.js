@@ -17,11 +17,10 @@
     function getBaseUrl() {
         return window.NCA_CTF_BASE_URL || '/NCA-CTF/public';
     }
-
     async function checkAuth() {
         try {
             const response = await fetch(
-                getBaseUrl() + '/index.php/api/v1/auth/me',
+                getBaseUrl() + '/api/v1/auth/me',
                 {
                     method: 'GET',
                     credentials: 'include',
@@ -43,34 +42,38 @@
             const data = await response.json();
 
             /*
-             * Existing backend response is expected to be:
+             * Backend response:
              *
              * {
-             *     authenticated: true,
-             *     user: {
-             *         id,
-             *         username,
-             *         email,
-             *         role,
-             *         created_at
-             *     }
+             *     success: true,
+             *     data: {
+             *         user: {
+             *             id,
+             *             username,
+             *             email,
+             *             role,
+             *             status,
+             *             ...
+             *         },
+             *         csrf_token: "..."
+             *     },
+             *     message: "Operation successful"
              * }
              */
 
-            if (!data.authenticated || !data.user) {
+            if (
+                !data.success ||
+                !data.data ||
+                !data.data.user
+            ) {
                 window.location.href = getBaseUrl() + '/login.php';
                 return false;
             }
 
-            currentUser = data.user;
+            currentUser = data.data.user;
 
             /*
-             * IMPORTANT:
-             * /auth/me exposes the application role string.
-             *
-             * Admin roles:
-             * - challenge_admin
-             * - super_admin
+             * Admin roles
              */
             if (
                 currentUser.role !== 'challenge_admin' &&
