@@ -1,0 +1,66 @@
+/* ================================================================
+   NCA CTF ADMIN DASHBOARD
+   ================================================================ */
+
+.dashboard-welcome {
+    padding: var(--space-lg);
+
+    background: var(--color-surface);
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+}
+
+.dashboard-welcome__eyebrow {
+    margin-bottom: 0.4rem;
+
+    color: var(--color-accent-light);
+
+    font-family: var(--font-mono);
+
+    font-size: 0.75rem;
+    font-weight: 700;
+
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.dashboard-welcome__title {
+    font-size: 1.5rem;
+    font-weight: 800;
+
+    margin-bottom: 0.4rem;
+}
+
+.dashboard-welcome__text {
+    color: var(--color-text-secondary);
+    font-size: 0.95rem;
+}
+
+
+/* ----- Empty Dashboard State ----- */
+
+.dashboard-empty {
+    margin-top: var(--space-lg);
+
+    padding: var(--space-lg);
+
+    background: var(--color-card);
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+
+    text-align: center;
+}
+
+.dashboard-empty__title {
+    margin-bottom: 0.4rem;
+
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.dashboard-empty__text {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+}

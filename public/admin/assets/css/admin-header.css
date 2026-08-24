@@ -1,0 +1,185 @@
+/* ================================================================
+   NCA CTF ADMIN HEADER
+   ================================================================ */
+
+.admin-header {
+    position: sticky;
+    top: 0;
+    z-index: 3000;
+
+    height: var(--header-height);
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 0 var(--space-md);
+
+    background: rgba(37, 37, 37, 0.96);
+    backdrop-filter: blur(10px);
+
+    border-bottom: 1px solid var(--color-border);
+}
+
+
+/* ----- Brand ----- */
+
+.admin-header__brand {
+    display: flex;
+    align-items: center;
+
+    font-size: 1.15rem;
+    font-weight: 800;
+
+    letter-spacing: -0.01em;
+}
+
+.admin-header__brand-main {
+    color: var(--color-text-primary);
+}
+
+.admin-header__brand-accent {
+    color: var(--color-accent-light);
+    margin-left: 0.35rem;
+}
+
+
+/* ----- Right Side ----- */
+
+.admin-header__right {
+    position: relative;
+}
+
+
+/* ----- Profile Button ----- */
+
+.admin-profile {
+    position: relative;
+}
+
+.admin-profile__button {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+
+    min-height: 38px;
+
+    padding: 0.45rem 0.75rem;
+
+    background: var(--color-surface);
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+
+    color: var(--color-text-primary);
+
+    cursor: pointer;
+
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease;
+}
+
+.admin-profile__button:hover,
+.admin-profile__button[aria-expanded="true"] {
+    background: var(--color-card);
+    border-color: var(--color-accent-light);
+}
+
+.admin-profile__name {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.admin-profile__arrow {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+
+    transition: transform 0.2s ease;
+}
+
+.admin-profile__button[aria-expanded="true"] .admin-profile__arrow {
+    transform: rotate(180deg);
+}
+
+
+/* ----- Dropdown ----- */
+
+.admin-profile__dropdown {
+    position: absolute;
+
+    top: calc(100% + 8px);
+    right: 0;
+
+    width: 160px;
+
+    padding: 0.35rem;
+
+    background: var(--color-card);
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.35);
+
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-5px);
+
+    transition:
+        opacity 0.15s ease,
+        transform 0.15s ease,
+        visibility 0.15s ease;
+}
+
+.admin-profile__dropdown.is-open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+
+/* ----- Logout Button ----- */
+
+.admin-profile__logout {
+    width: 100%;
+
+    display: flex;
+    align-items: center;
+
+    padding: 0.65rem 0.75rem;
+
+    background: transparent;
+
+    border: none;
+    border-radius: var(--radius-sm);
+
+    color: var(--color-text-secondary);
+
+    font-size: 0.9rem;
+    text-align: left;
+
+    cursor: pointer;
+
+    transition:
+        background 0.2s ease,
+        color 0.2s ease;
+}
+
+.admin-profile__logout:hover {
+    background: rgba(200, 92, 92, 0.12);
+    color: var(--color-danger);
+}
+
+
+/* ----- Mobile ----- */
+
+@media (max-width: 600px) {
+    .admin-header {
+        padding: 0 var(--space-sm);
+    }
+
+    .admin-header__brand {
+        font-size: 1rem;
+    }
+}

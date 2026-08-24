@@ -1,0 +1,154 @@
+/* ================================================================
+   NCA CTF ADMIN
+   BASE / DESIGN TOKENS
+   ================================================================ */
+
+:root {
+    /* Background */
+    --color-bg: #252525;
+    --color-bg-secondary: #1a1a1a;
+    --color-surface: #2d2d2d;
+    --color-card: #333333;
+    --color-border: #3d3d3d;
+
+    /* Accent */
+    --color-accent: #472525;
+    --color-accent-hover: #5a3030;
+    --color-accent-light: #8a4a4a;
+    --color-accent-glow: rgba(138, 74, 74, 0.15);
+
+    /* Text */
+    --color-text-primary: #f0f0f0;
+    --color-text-secondary: #c0c0c0;
+    --color-text-muted: #888888;
+
+    /* Semantic */
+    --color-success: #5c9b6c;
+    --color-warning: #b58b4a;
+    --color-danger: #a85454;
+    --color-info: #667f9e;
+
+    /* Typography */
+    --font-ui: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'Courier New', 'Consolas', monospace;
+
+    /* Spacing */
+    --space-xs: 0.5rem;
+    --space-sm: 1rem;
+    --space-md: 1.5rem;
+    --space-lg: 2.5rem;
+    --space-xl: 4rem;
+
+    /* Radius */
+    --radius: 10px;
+    --radius-sm: 6px;
+
+    /* Layout */
+    --admin-header-height: 64px;
+    --admin-sidebar-width: 240px;
+}
+
+/* ================================================================
+   RESET
+   ================================================================ */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    min-height: 100%;
+}
+
+body {
+    min-height: 100vh;
+    background: var(--color-bg);
+    color: var(--color-text-primary);
+    font-family: var(--font-ui);
+    line-height: 1.6;
+}
+
+button,
+input,
+select,
+textarea {
+    font: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+/* ================================================================
+   BUTTONS
+   ================================================================ */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    min-height: 40px;
+    padding: 0.6rem 1.2rem;
+
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+
+    font-family: var(--font-ui);
+    font-size: 0.9rem;
+    font-weight: 600;
+
+    transition:
+        background-color 0.2s ease,
+        border-color 0.2s ease,
+        color 0.2s ease;
+}
+
+.btn--secondary {
+    background: transparent;
+    border-color: var(--color-border);
+    color: var(--color-text-primary);
+}
+
+.btn--secondary:hover {
+    border-color: var(--color-accent-light);
+    color: var(--color-accent-light);
+}
+
+.btn--danger {
+    background: var(--color-danger);
+    color: #fff;
+}
+
+.btn--danger:hover {
+    filter: brightness(1.1);
+}
+
+/* ================================================================
+   SCROLLBAR
+   ================================================================ */
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--color-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--color-accent-light);
+}

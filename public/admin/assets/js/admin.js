@@ -1,283 +1,283 @@
-// NCA-CTF Admin Core
+document.addEventListener('DOMContentLoaded', function () {
 
-(function () {
-    'use strict';
+    /* ============================================================
+       ELEMENTS
+       ============================================================ */
 
-    let currentUser = null;
-    let isAuthorized = false;
+    const profileButton =
+        document.getElementById('adminProfileButton');
 
-    const sidebar = document.getElementById('adminSidebar');
-    const overlay = document.getElementById('adminSidebarOverlay');
-    const toggleBtn = document.getElementById('adminSidebarToggle');
-    const userAvatar = document.getElementById('adminUserAvatar');
-    const userName = document.getElementById('adminUserName');
-    const userRole = document.getElementById('adminUserRole');
-    const logoutBtn = document.getElementById('adminLogoutBtn');
+    const profileDropdown =
+        document.getElementById('adminProfileDropdown');
 
-    function getBaseUrl() {
-        return window.NCA_CTF_BASE_URL || '/NCA-CTF/public';
+    const logoutButton =
+        document.getElementById('adminLogoutButton');
+
+    const logoutModal =
+        document.getElementById('adminLogoutModal');
+
+    const confirmLogout =
+        document.getElementById('adminConfirmLogout');
+
+    const closeLogoutElements =
+        document.querySelectorAll('[data-close-logout]');
+
+
+    /* ============================================================
+       PROFILE DROPDOWN
+       ============================================================ */
+
+    function openProfileDropdown() {
+
+        if (!profileButton || !profileDropdown) {
+            return;
+        }
+
+        profileButton.setAttribute(
+            'aria-expanded',
+            'true'
+        );
+
+        profileDropdown.hidden = false;
     }
-    async function checkAuth() {
-        try {
-            const response = await fetch(
-                getBaseUrl() + '/api/v1/auth/me',
-                {
-                    method: 'GET',
-                    credentials: 'include',
-                    headers: {
-                        'Accept': 'application/json'
-                    }
-                }
+
+
+    function closeProfileDropdown() {
+
+        if (!profileButton || !profileDropdown) {
+            return;
+        }
+
+        profileButton.setAttribute(
+            'aria-expanded',
+            'false'
+        );
+
+        profileDropdown.hidden = true;
+    }
+
+
+    function toggleProfileDropdown() {
+
+        if (!profileButton || !profileDropdown) {
+            return;
+        }
+
+        const isOpen =
+            profileButton.getAttribute('aria-expanded') === 'true';
+
+        if (isOpen) {
+            closeProfileDropdown();
+        } else {
+            openProfileDropdown();
+        }
+    }
+
+
+    if (profileButton) {
+
+        profileButton.addEventListener(
+            'click',
+            function (event) {
+
+                event.preventDefault();
+                event.stopPropagation();
+
+                toggleProfileDropdown();
+
+            }
+        );
+
+    }
+
+
+    /* ============================================================
+       LOGOUT MODAL
+       ============================================================ */
+
+    function openLogoutModal() {
+
+        if (!logoutModal) {
+            return;
+        }
+
+        logoutModal.hidden = false;
+
+        document.body.classList.add(
+            'admin-modal-open'
+        );
+
+        /*
+         * Put focus on Cancel initially so the modal
+         * is keyboard accessible.
+         */
+        const cancelButton =
+            logoutModal.querySelector(
+                '[data-close-logout].btn'
             );
 
-            if (response.status === 401) {
-                window.location.href = getBaseUrl() + '/login.php';
-                return false;
-            }
-
-            if (!response.ok) {
-                throw new Error('Authentication request failed.');
-            }
-
-            const data = await response.json();
-
-            /*
-             * Backend response:
-             *
-             * {
-             *     success: true,
-             *     data: {
-             *         user: {
-             *             id,
-             *             username,
-             *             email,
-             *             role,
-             *             status,
-             *             ...
-             *         },
-             *         csrf_token: "..."
-             *     },
-             *     message: "Operation successful"
-             * }
-             */
-
-            if (
-                !data.success ||
-                !data.data ||
-                !data.data.user
-            ) {
-                window.location.href = getBaseUrl() + '/login.php';
-                return false;
-            }
-
-            currentUser = data.data.user;
-
-            /*
-             * Admin roles
-             */
-            if (
-                currentUser.role !== 'challenge_admin' &&
-                currentUser.role !== 'super_admin'
-            ) {
-                showAccessDenied();
-                return false;
-            }
-
-            isAuthorized = true;
-
-            updateUserUI(currentUser);
-
-            return true;
-
-        } catch (error) {
-            console.error('Admin authentication error:', error);
-            showAuthError();
-            return false;
+        if (cancelButton) {
+            setTimeout(function () {
+                cancelButton.focus();
+            }, 50);
         }
     }
 
-    function showAccessDenied() {
-        const mainContent = document.querySelector('.admin-content');
 
-        if (mainContent) {
-            mainContent.innerHTML = `
-                <div class="admin-error">
-                    <div class="error-icon">🔒</div>
+    function closeLogoutModal() {
 
-                    <div class="error-text">
-                        Access Denied
-                    </div>
-
-                    <div class="error-hint">
-                        You do not have permission to access the NCA-CTF administration area.
-                    </div>
-
-                    <div class="error-actions">
-                        <a
-                            href="${getBaseUrl()}/dashboard.php"
-                            class="btn btn-primary"
-                        >
-                            Return to Dashboard
-                        </a>
-                    </div>
-                </div>
-            `;
-        }
-    }
-
-    function showAuthError() {
-        const mainContent = document.querySelector('.admin-content');
-
-        if (mainContent) {
-            mainContent.innerHTML = `
-                <div class="admin-error">
-                    <div class="error-icon">⚠️</div>
-
-                    <div class="error-text">
-                        Authentication Error
-                    </div>
-
-                    <div class="error-hint">
-                        Unable to verify your administrator session.
-                    </div>
-
-                    <div class="error-actions">
-                        <button
-                            onclick="location.reload()"
-                            class="btn btn-primary"
-                        >
-                            Retry
-                        </button>
-
-                        <a
-                            href="${getBaseUrl()}/login.php"
-                            class="btn btn-outline"
-                        >
-                            Login
-                        </a>
-                    </div>
-                </div>
-            `;
-        }
-    }
-
-    function updateUserUI(user) {
-        if (!user) {
+        if (!logoutModal) {
             return;
         }
 
-        if (userAvatar) {
-            userAvatar.textContent =
-                (user.username || 'U').charAt(0).toUpperCase();
-        }
+        logoutModal.hidden = true;
 
-        if (userName) {
-            userName.textContent = user.username || 'User';
-        }
-
-        if (userRole) {
-            userRole.textContent =
-                user.role === 'super_admin'
-                    ? 'Super Admin'
-                    : 'Challenge Admin';
-        }
+        document.body.classList.remove(
+            'admin-modal-open'
+        );
     }
 
-    function setupSidebar() {
-        if (toggleBtn && sidebar && overlay) {
-            toggleBtn.addEventListener('click', function (e) {
-                e.stopPropagation();
 
-                sidebar.classList.toggle('open');
-                overlay.classList.toggle('active');
-            });
-        }
+    /* ============================================================
+       OPEN LOGOUT MODAL
+       ============================================================ */
 
-        if (overlay && sidebar) {
-            overlay.addEventListener('click', function () {
-                sidebar.classList.remove('open');
-                overlay.classList.remove('active');
-            });
-        }
+    if (logoutButton) {
 
-        document.addEventListener('keydown', function (e) {
+        logoutButton.addEventListener(
+            'click',
+            function (event) {
+
+                event.preventDefault();
+                event.stopPropagation();
+
+                closeProfileDropdown();
+
+                openLogoutModal();
+
+            }
+        );
+
+    }
+
+
+    /* ============================================================
+       CLOSE LOGOUT MODAL
+       ============================================================ */
+
+    closeLogoutElements.forEach(function (element) {
+
+        element.addEventListener(
+            'click',
+            function (event) {
+
+                event.preventDefault();
+
+                closeLogoutModal();
+
+            }
+        );
+
+    });
+
+
+    /* ============================================================
+       CONFIRM LOGOUT
+       ============================================================ */
+
+    if (confirmLogout) {
+
+        confirmLogout.addEventListener(
+            'click',
+            function (event) {
+
+                event.preventDefault();
+                event.stopPropagation();
+
+                /*
+                 * Backend logout will be connected here.
+                 *
+                 * For now, this proves that the confirmation
+                 * button itself is working.
+                 */
+
+                confirmLogout.disabled = true;
+                confirmLogout.textContent = 'Logging out...';
+
+                /*
+                 * TEMPORARY:
+                 * Return to the login page.
+                 *
+                 * We will replace this with the real
+                 * backend session logout once the admin
+                 * authentication flow is cleaned up.
+                 */
+
+                window.location.href =
+                    '/NCA-CTF/public/login.php';
+
+            }
+        );
+
+    }
+
+
+    /* ============================================================
+       CLICK OUTSIDE PROFILE
+       ============================================================ */
+
+    document.addEventListener(
+        'click',
+        function (event) {
+
+            if (!profileButton || !profileDropdown) {
+                return;
+            }
+
             if (
-                e.key === 'Escape' &&
-                sidebar &&
-                sidebar.classList.contains('open')
+                !profileButton.contains(event.target) &&
+                !profileDropdown.contains(event.target)
             ) {
-                sidebar.classList.remove('open');
 
-                if (overlay) {
-                    overlay.classList.remove('active');
-                }
+                closeProfileDropdown();
+
             }
-        });
-    }
 
-    function setupLogout() {
-        if (!logoutBtn) {
-            return;
         }
+    );
 
-        logoutBtn.addEventListener('click', async function (e) {
-            e.preventDefault();
 
-            try {
-                await fetch(
-                    getBaseUrl() + '/index.php/api/v1/auth/logout',
-                    {
-                        method: 'POST',
-                        credentials: 'include',
-                        headers: {
-                            'Accept': 'application/json'
-                        }
-                    }
-                );
-            } catch (error) {
-                console.warn('Logout request failed:', error);
+    /* ============================================================
+       ESCAPE KEY
+       ============================================================ */
+
+    document.addEventListener(
+        'keydown',
+        function (event) {
+
+            if (event.key !== 'Escape') {
+                return;
             }
 
-            window.location.href =
-                getBaseUrl() + '/login.php';
-        });
-    }
 
-    window.Admin = {
-        getCurrentUser: function () {
-            return currentUser;
-        },
+            /* Close logout modal */
 
-        isAuthorized: function () {
-            return isAuthorized;
-        },
+            if (
+                logoutModal &&
+                !logoutModal.hidden
+            ) {
 
-        checkAuth: checkAuth
-    };
+                closeLogoutModal();
 
-    async function init() {
-        setupSidebar();
-        setupLogout();
+                return;
+            }
 
-        const authorized = await checkAuth();
 
-        document.dispatchEvent(
-            new CustomEvent('admin:authReady', {
-                detail: {
-                    authorized: authorized,
-                    user: currentUser
-                }
-            })
-        );
-    }
+            /* Close profile dropdown */
 
-    if (document.readyState === 'loading') {
-        document.addEventListener(
-            'DOMContentLoaded',
-            init
-        );
-    } else {
-        init();
-    }
+            closeProfileDropdown();
 
-})();
+        }
+    );
+
+});
