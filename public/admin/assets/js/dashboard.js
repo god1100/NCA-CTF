@@ -7,6 +7,15 @@
 
     const content = document.getElementById('adminContent');
 
+    function adminUrl(path) {
+        if (window.NCA_API && typeof window.NCA_API.url === 'function') {
+            return window.NCA_API.url(path);
+        }
+        const base = window.NCA_CTF_BASE_URL || '/NCA-CTF/public';
+        const cleanPath = path.startsWith('/') ? path.substring(1) : path;
+        return `${base}/${cleanPath}`;
+    }
+
     // ============================================================
     // RENDER DASHBOARD
     // ============================================================
@@ -38,7 +47,7 @@
             }
 
             const data = await response.json();
-            const challenges = data.data || [];
+            const challenges = (data.data && data.data.challenges) || [];
 
             // Also fetch categories count for some context
             const catResponse = await fetch(
@@ -54,8 +63,8 @@
             );
             const catData = catResponse.ok
                 ? await catResponse.json()
-                : { data: [] };
-            const categories = catData.data || [];
+                : { data: { categories: [] } };
+            const categories = (catData.data && catData.data.categories) || [];
 
             // Render dashboard
             renderDashboard(challenges, categories);
@@ -115,8 +124,8 @@
 
             <!-- Quick Actions -->
             <div class="admin-dashboard-actions">
-                <a href="/admin/challenges.php" class="btn btn-primary">📋 Manage Challenges</a>
-                <a href="/admin/challenge.php" class="btn btn-success">➕ Create New Challenge</a>
+                <a href="${adminUrl('/admin/challenges.php')}" class="btn btn-primary">📋 Manage Challenges</a>
+                <a href="${adminUrl('/admin/challenge.php')}" class="btn btn-success">➕ Create New Challenge</a>
             </div>
 
             <!-- Recent Challenges -->
@@ -142,8 +151,8 @@
                         <tbody>
                             ${challenges.map(c => `
                                 <tr>
-                                    <td><a href="/admin/challenge.php?id=${c.id}" style="color:var(--admin-text); text-decoration:none;">${escapeHtml(c.title)}</a></td>
-                                    <td>${c.category ? escapeHtml(c.category.name) : '-'}</td>
+                                    <td><a href="${adminUrl(`/admin/challenge.php?id=${c.id}`)}" style="color:var(--admin-text); text-decoration:none;">${escapeHtml(c.title)}</a></td>
+                                    <td>${c.category ? escapeHtml(typeof c.category === 'string' ? c.category : c.category.name) : '-'}</td>
                                     <td><span class="diff-${c.difficulty}">${c.difficulty || '-'}</span></td>
                                     <td>${c.points || 0}</td>
                                     <td><span class="status-badge status-${c.status}">${c.status || 'draft'}</span></td>

@@ -15,7 +15,10 @@
         result.textContent = "Checking...";
 
         try {
-            const response = await fetch("/api/v1/health");
+            const url = (window.NCA_API && typeof window.NCA_API.url === "function")
+                ? window.NCA_API.url("/api/v1/health")
+                : (window.NCA_CTF_BASE_URL || "/NCA-CTF/public") + "/api/v1/health";
+            const response = await fetch(url);
             const body = await response.json();
             result.textContent = JSON.stringify(body, null, 2);
         } catch (err) {

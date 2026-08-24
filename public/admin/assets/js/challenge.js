@@ -22,6 +22,19 @@
     let isSaving = false;
 
     // ============================================================
+    // URL HELPER (same convention as challenges.js)
+    // ============================================================
+    function appUrl(path) {
+        if (window.NCA_API && typeof window.NCA_API.url === 'function') {
+            return window.NCA_API.url(path);
+        }
+
+        const base = window.NCA_CTF_BASE_URL || '/NCA-CTF/public';
+        const cleanPath = path.startsWith('/') ? path.substring(1) : path;
+        return `${base}/${cleanPath}`;
+    }
+
+    // ============================================================
     // MODAL (shared)
     // ============================================================
     window.AdminModal = {
@@ -74,7 +87,7 @@
 
             if (isEdit) {
                 // Load challenge data
-                const challengeResponse = await fetch(`/api/v1/challenges/${challengeId}`, {
+                const challengeResponse = await fetch(appUrl(`/api/v1/challenges/${challengeId}`), {
                     method: 'GET',
                     credentials: 'include',
                     headers: { 'Accept': 'application/json' }
@@ -84,7 +97,12 @@
                     throw new Error('Challenge not found');
                 }
 
-                challengeData = await challengeResponse.json();
+                const challengeJson = await challengeResponse.json();
+                challengeData = (challengeJson.data && challengeJson.data.challenge) || null;
+
+                if (!challengeData) {
+                    throw new Error('Challenge not found');
+                }
 
                 // Load hints
                 await loadHints();
@@ -120,7 +138,7 @@
                     <div class="error-text">Unable to load challenge</div>
                     <div class="error-hint">${error.message || 'Please try again later.'}</div>
                     <div class="error-actions">
-                        <a href="/admin/challenges.php" class="btn btn-primary">Back to Challenges</a>
+                        <a href="${appUrl('/admin/challenges.php')}" class="btn btn-primary">Back to Challenges</a>
                         <button onclick="location.reload()" class="btn btn-outline">Retry</button>
                     </div>
                 </div>
@@ -132,7 +150,7 @@
 
     async function loadCategories() {
         try {
-            const response = await fetch('/api/v1/categories', {
+            const response = await fetch(appUrl('/api/v1/categories'), {
                 method: 'GET',
                 credentials: 'include',
                 headers: { 'Accept': 'application/json' }
@@ -140,7 +158,7 @@
 
             if (response.ok) {
                 const data = await response.json();
-                categories = data.data || [];
+                categories = (data.data && data.data.categories) || [];
             }
         } catch (e) {
             console.warn('Could not load categories:', e);
@@ -150,7 +168,7 @@
 
     async function loadHints() {
         try {
-            const response = await fetch(`/api/v1/admin/challenges/${challengeId}/hints`, {
+            const response = await fetch(appUrl(`/api/v1/challenges/${challengeId}/hints`), {
                 method: 'GET',
                 credentials: 'include',
                 headers: { 'Accept': 'application/json' }
@@ -158,7 +176,7 @@
 
             if (response.ok) {
                 const data = await response.json();
-                hints = data.data || [];
+                hints = (data.data && data.data.hints) || [];
             }
         } catch (e) {
             console.warn('Could not load hints:', e);
@@ -168,7 +186,7 @@
 
     async function loadFiles() {
         try {
-            const response = await fetch(`/api/v1/challenges/${challengeId}/files`, {
+            const response = await fetch(appUrl(`/api/v1/challenges/${challengeId}/files`), {
                 method: 'GET',
                 credentials: 'include',
                 headers: { 'Accept': 'application/json' }
@@ -176,7 +194,7 @@
 
             if (response.ok) {
                 const data = await response.json();
-                files = data.data || [];
+                files = (data.data && data.data.files) || [];
             }
         } catch (e) {
             console.warn('Could not load files:', e);
@@ -230,6 +248,7 @@
                                 <option value="easy" ${c.difficulty === 'easy' ? 'selected' : ''}>Easy</option>
                                 <option value="medium" ${c.difficulty === 'medium' ? 'selected' : ''}>Medium</option>
                                 <option value="hard" ${c.difficulty === 'hard' ? 'selected' : ''}>Hard</option>
+                                <option value="insane" ${c.difficulty === 'insane' ? 'selected' : ''}>Insane</option>
                             </select>
                         </div>
                     </div>
@@ -241,10 +260,11 @@
                         <div class="form-group">
                             <label for="deployment_type">Deployment Type *</label>
                             <select id="deployment_type" required>
-                                <option value="static" ${c.deployment_type === 'static' ? 'selected' : ''}>Static / File-based</option>
-                                <option value="docker" ${c.deployment_type === 'docker' ? 'selected' : ''}>Docker (Coming Soon)</option>
+                                <option value="DOWNLOAD" ${c.deployment_type === 'DOWNLOAD' ? 'selected' : ''}>Download / File-based</option>
+                                <option value="HTTP" ${c.deployment_type === 'HTTP' ? 'selected' : ''}>HTTP</option>
+                                <option value="TCP" ${c.deployment_type === 'TCP' ? 'selected' : ''}>TCP</option>
                             </select>
-                            <span class="help-text">Static challenges use files. Docker challenges require infrastructure.</span>
+                            <span class="help-text">Deployment type as recognized by the backend (download, HTTP, or TCP).</span>
                         </div>
                     </div>
                 </div>
@@ -280,7 +300,8 @@
                     `}
                 </div>
 
-                <!-- Hints -->
+                <!-- Hints (edit mode only -- hints require an existing challenge_id) -->
+                ${isEdit ? `
                 <div class="form-section">
                     <h3 class="form-section-title">Hints</h3>
                     <div id="hintsContainer">
@@ -324,8 +345,17 @@
                         <input type="hidden" id="editHintId" value="">
                     </div>
                 </div>
+                ` : `
+                <div class="form-section">
+                    <h3 class="form-section-title">Hints</h3>
+                    <div class="admin-empty-state" style="padding:16px;">
+                        <div class="empty-hint">Save the challenge first, then add hints.</div>
+                    </div>
+                </div>
+                `}
 
-                <!-- Files -->
+                <!-- Files (edit mode only -- files require an existing challenge_id) -->
+                ${isEdit ? `
                 <div class="form-section">
                     <h3 class="form-section-title">Files</h3>
                     <div id="filesContainer">
@@ -342,7 +372,7 @@
                                             <div class="item-meta">${f.file_size ? `${Math.round(f.file_size / 1024)} KB` : ''} ${f.uploaded_at ? `· Uploaded ${new Date(f.uploaded_at).toLocaleDateString()}` : ''}</div>
                                         </div>
                                         <div class="item-actions">
-                                            <a href="/api/v1/challenge-files/${f.id}/download" class="btn btn-outline btn-xs" target="_blank">Download</a>
+                                            <a href="${appUrl(`/api/v1/challenge-files/${f.id}/download`)}" class="btn btn-outline btn-xs" target="_blank">Download</a>
                                             <button class="btn btn-danger btn-xs" onclick="ChallengeForm.deleteFile(${f.id})">Delete</button>
                                         </div>
                                     </div>
@@ -360,6 +390,14 @@
                         </div>
                     </div>
                 </div>
+                ` : `
+                <div class="form-section">
+                    <h3 class="form-section-title">Files</h3>
+                    <div class="admin-empty-state" style="padding:16px;">
+                        <div class="empty-hint">Save the challenge first, then attach files.</div>
+                    </div>
+                </div>
+                `}
 
                 <!-- Status (edit only) -->
                 ${isEdit ? `
@@ -386,7 +424,7 @@
                 <!-- Form Actions -->
                 <div style="display:flex; gap:12px; margin-top:16px; padding-top:16px; border-top:1px solid var(--admin-border);">
                     <button type="submit" class="btn btn-primary" id="saveBtn">${isEdit ? 'Update Challenge' : 'Create Challenge'}</button>
-                    <a href="/admin/challenges.php" class="btn btn-outline">Cancel</a>
+                    <a href="${appUrl('/admin/challenges.php')}" class="btn btn-outline">Cancel</a>
                     ${isEdit ? `
                         <button type="button" class="btn btn-danger" style="margin-left:auto;" onclick="ChallengeForm.deleteChallenge()">Delete Challenge</button>
                     ` : ''}
@@ -433,16 +471,19 @@
                 deployment_type
             };
 
-            // Add flag for new challenge
+            // Flag is required for new challenges, but the challenge-create
+            // endpoint does not accept a flag field -- it must be created
+            // separately via POST /api/v1/challenges/{id}/flag once the
+            // challenge exists (see app/Controllers/FlagController.php).
+            let pendingFlag = null;
             if (!isEdit) {
-                const flag = document.getElementById('flag').value.trim();
-                if (!flag) { alert('Flag is required.'); isSaving = false; return; }
-                data.flag = flag;
+                pendingFlag = document.getElementById('flag').value.trim();
+                if (!pendingFlag) { alert('Flag is required.'); isSaving = false; return; }
             }
 
             try {
                 const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
-                const url = isEdit ? `/NCA-CTF/public/api/v1/challenges/${challengeId}` : '/NCA-CTF/public/api/v1/challenges';
+                const url = isEdit ? appUrl(`/api/v1/challenges/${challengeId}`) : appUrl('/api/v1/challenges');
                 const method = isEdit ? 'PUT' : 'POST';
 
                 const response = await fetch(url, {
@@ -462,11 +503,28 @@
                 }
 
                 const result = await response.json();
-                const savedId = result.challenge?.id || challengeId;
+                const savedId = (result.data && result.data.challenge && result.data.challenge.id) || challengeId;
 
                 if (!isEdit) {
+                    // Create the flag now that the challenge exists.
+                    const flagResponse = await fetch(appUrl(`/api/v1/challenges/${savedId}/flag`), {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': csrf
+                        },
+                        body: JSON.stringify({ flag: pendingFlag })
+                    });
+
+                    if (!flagResponse.ok) {
+                        const flagError = await flagResponse.json();
+                        throw new Error(flagError.message || 'Challenge was created, but the flag could not be saved.');
+                    }
+
                     // Redirect to edit page
-                    window.location.href = `/admin/challenge.php?id=${savedId}`;
+                    window.location.href = appUrl(`/admin/challenge.php?id=${savedId}`);
                 } else {
                     // Reload to reflect changes
                     await loadData();
@@ -490,7 +548,7 @@
 
             try {
                 const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
-                await fetch(`/NCA-CTF/public/api/v1/challenges/${challengeId}/flag`, {
+                const response = await fetch(appUrl(`/api/v1/challenges/${challengeId}/flag`), {
                     method: 'PUT',
                     credentials: 'include',
                     headers: {
@@ -530,7 +588,7 @@
                 `Publish "${challengeData.title}"?\n\nParticipants will be able to see and solve this challenge.`,
                 'Publish Challenge',
                 async () => {
-                    await updateStatus('published');
+                    await updateStatus('publish');
                 }
             );
         },
@@ -541,7 +599,7 @@
                 `Pause "${challengeData.title}"?\n\nThe challenge will no longer be active.`,
                 'Pause Challenge',
                 async () => {
-                    await updateStatus('paused');
+                    await updateStatus('pause');
                 }
             );
         },
@@ -552,7 +610,7 @@
                 `Archive "${challengeData.title}"?\n\nThe challenge will be archived and no longer active.`,
                 'Archive Challenge',
                 async () => {
-                    await updateStatus('archived');
+                    await updateStatus('archive');
                 }
             );
         },
@@ -565,7 +623,7 @@
                 async () => {
                     try {
                         const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
-                        await fetch(`/NCA-CTF/public/api/v1/challenges/${challengeId}`, {
+                        const response = await fetch(appUrl(`/api/v1/challenges/${challengeId}`), {
                             method: 'DELETE',
                             credentials: 'include',
                             headers: {
@@ -579,7 +637,7 @@
                             throw new Error(error.message || 'Delete failed');
                         }
 
-                        window.location.href = '/admin/challenges.php';
+                        window.location.href = appUrl('/admin/challenges.php');
 
                     } catch (error) {
                         console.error('Delete error:', error);
@@ -630,7 +688,7 @@
 
             try {
                 const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
-                const url = id ? `/api/v1/admin/hints/${id}` : `/api/v1/admin/challenges/${challengeId}/hints`;
+                const url = id ? appUrl(`/api/v1/challenge-hints/${id}`) : appUrl(`/api/v1/challenges/${challengeId}/hints`);
                 const method = id ? 'PUT' : 'POST';
                 const data = { content, cost };
 
@@ -672,7 +730,7 @@
                 async () => {
                     try {
                         const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
-                        const response = await fetch(`/api/v1/admin/hints/${id}`, {
+                        const response = await fetch(appUrl(`/api/v1/challenge-hints/${id}`), {
                             method: 'DELETE',
                             credentials: 'include',
                             headers: {
@@ -713,7 +771,7 @@
 
             try {
                 const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
-                const response = await fetch(`/api/v1/admin/challenges/${challengeId}/files`, {
+                const response = await fetch(appUrl(`/api/v1/challenges/${challengeId}/files`), {
                     method: 'POST',
                     credentials: 'include',
                     headers: {
@@ -750,7 +808,7 @@
                 async () => {
                     try {
                         const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
-                        const response = await fetch(`/api/v1/admin/challenge-files/${id}`, {
+                        const response = await fetch(appUrl(`/api/v1/challenge-files/${id}`), {
                             method: 'DELETE',
                             credentials: 'include',
                             headers: {
@@ -786,18 +844,20 @@
         return div.innerHTML;
     }
 
-    async function updateStatus(status) {
+    // `action` must be one of 'publish' | 'pause' | 'archive' -- these map
+    // directly to the dedicated lifecycle endpoints; there is no generic
+    // status PUT endpoint on the backend (see routes/api.php).
+    async function updateStatus(action) {
         try {
             const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
-            const response = await fetch(`/api/v1/admin/challenges/${challengeId}/status`, {
-                method: 'PUT',
+            const response = await fetch(appUrl(`/api/v1/challenges/${challengeId}/${action}`), {
+                method: 'POST',
                 credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
                     'X-CSRF-TOKEN': csrf
-                },
-                body: JSON.stringify({ status })
+                }
             });
 
             if (!response.ok) {
