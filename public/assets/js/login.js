@@ -23,9 +23,16 @@
     // ---- Password visibility toggle ----
     if (togglePassword) {
         togglePassword.addEventListener('click', function () {
-            var type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            var type = passwordInput.getAttribute('type') === 'password'
+                ? 'text'
+                : 'password';
+
             passwordInput.setAttribute('type', type);
-            this.querySelector('i').className = type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
+
+            this.querySelector('i').className =
+                type === 'password'
+                    ? 'fas fa-eye'
+                    : 'fas fa-eye-slash';
         });
     }
 
@@ -33,13 +40,20 @@
     identifierInput.addEventListener('input', function () {
         clearFieldError('identifier');
     });
+
     passwordInput.addEventListener('input', function () {
         clearFieldError('password');
     });
 
     function clearFieldError(field) {
-        var errorEl = field === 'identifier' ? identifierError : passwordError;
-        var inputEl = field === 'identifier' ? identifierInput : passwordInput;
+        var errorEl = field === 'identifier'
+            ? identifierError
+            : passwordError;
+
+        var inputEl = field === 'identifier'
+            ? identifierInput
+            : passwordInput;
+
         errorEl.textContent = '';
         inputEl.classList.remove('error');
         hideMessage();
@@ -57,8 +71,10 @@
 
     function setLoading(loading) {
         loginButton.disabled = loading;
+
         var textSpan = loginButton.querySelector('.btn-text');
         var loaderSpan = loginButton.querySelector('.btn-loader');
+
         if (loading) {
             textSpan.textContent = 'Logging in...';
             loaderSpan.style.display = 'inline-block';
@@ -71,6 +87,7 @@
     // ---- Client-side validation ----
     function validateForm() {
         var isValid = true;
+
         var identifier = identifierInput.value.trim();
         var password = passwordInput.value;
 
@@ -92,6 +109,7 @@
     // ---- Submit handler ----
     form.addEventListener('submit', async function (e) {
         e.preventDefault();
+
         hideMessage();
         clearFieldError('identifier');
         clearFieldError('password');
@@ -100,7 +118,9 @@
             return;
         }
 
-        if (loginButton.disabled) return;
+        if (loginButton.disabled) {
+            return;
+        }
 
         setLoading(true);
 
@@ -114,71 +134,221 @@
             });
 
             if (result.ok && result.success) {
-                showMessage('Login successful! Redirecting...', 'success');
+                showMessage(
+                    'Login successful! Redirecting...',
+                    'success'
+                );
 
-                // Get user role from result or fetch separately
                 var userRole = null;
-                if (result.user && result.user.role) {
-                    userRole = result.user.role;
-                } else {
+
+                /*
+                 * First try to get the role from the login response.
+                 */
+                if (
+                    result.data &&
+                    result.data.user &&
+                    result.data.user.role
+                ) {
+                    userRole = result.data.user.role;
+                }
+
+                /*
+                 * If login response does not contain the role,
+                 * fetch the authenticated user from /auth/me.
+                 */
+                if (!userRole) {
                     try {
-                        var meResponse = await fetch('/NCA-CTF/public/api/v1/auth/me', {
-                            method: 'GET',
-                            credentials: 'include',
-                            headers: { 'Accept': 'application/json' }
-                        });
-                        if (meResponse.ok) {
-                            var meData = await meResponse.json();
-                            if (meData.authenticated && meData.user) {
-                                userRole = meData.user.role;
-                            }
+                        var meResponse = await window.NCA_API.me();
+
+                        if (
+                            meResponse.ok &&
+                            meResponse.success &&
+                            meResponse.data &&
+                            meResponse.data.user
+                        ) {
+                            userRole = meResponse.data.user.role;
                         }
                     } catch (e) {
-                        console.warn('Could not fetch user role:', e);
+                        console.warn('Could not fetch authenticated user:', e);
+                    }
+                }
+
+                /*
+                 * Redirect based on authenticated role.
+                 */
+                setTimeout(function () {
+
+                    if (
+                        userRole === 'challenge_admin' ||
+                        userRole === 'super_admin'
+                    ) {
+                        window.location.href =
+                            BASE_URL + '/admin/index.php';
+
+                        return;
+                    }
+
+                    window.location.href =
+                        BASE_URL + '/dashboard.php';
+
+                }, 800);
+                showMessage(
+                    'Login successful! Redirecting...',
+                    'success'
+                );
+
+                /*
+                 * IMPORTANT:
+                 *
+                 * api.js returns:
+                 *
+                 * result = {
+                 *     status: ...,
+                 *     ok: ...,
+                 *     success: ...,
+                 *     data: {
+                 *         user: {
+                 *             role: ...
+                 *         }
+                 *     }
+                 * }
+                 *
+                 * Therefore the user role is:
+                 *
+                 * result.data.user.role
+                 */
+
+                var userRole = null;
+
+                if (
+                    result.data &&
+                    result.data.user &&
+                    result.data.user.role
+                ) {
+                    userRole = result.data.user.role;
+                }
+
+                /*
+                 * Fallback:
+                 * If the login response does not contain the user for
+                 * some reason, ask the existing API for /auth/me.
+                 *
+                 * We use BASE_URL so the application does not depend
+                 * on a hard-coded /NCA-CTF/public path.
+                 */
+                if (!userRole) {
+                    try {
+                        var meResponse = await window.NCA_API.me();
+
+                        if (
+                            meResponse.ok &&
+                            meResponse.success &&
+                            meResponse.data &&
+                            meResponse.data.user
+                        ) {
+                            userRole = meResponse.data.user.role;
+                        }
+                    } catch (e) {
+                        console.warn(
+                            'Could not fetch user role:',
+                            e
+                        );
                     }
                 }
 
                 setTimeout(function () {
-                    // Redirect based on role
-                    if (userRole === 'challenge_admin' || userRole === 'super_admin') {
-                        window.location.href = '/NCA-CTF/public/admin/index.php';
-                    } else {
-                        window.location.href = '/NCA-CTF/public/dashboard.php';
+
+                    /*
+                     * Admin users
+                     */
+                    if (
+                        userRole === 'challenge_admin' ||
+                        userRole === 'super_admin'
+                    ) {
+                        window.location.href =
+                            BASE_URL + '/admin/index.php';
+
+                        return;
                     }
+
+                    /*
+                     * Normal participants
+                     */
+                    window.location.href =
+                        BASE_URL + '/dashboard.php';
+
                 }, 800);
 
             } else if (result.status === 401) {
-                showMessage('Invalid username/email or password.', 'error');
+
+                showMessage(
+                    'Invalid username/email or password.',
+                    'error'
+                );
+
                 identifierInput.classList.add('error');
                 passwordInput.classList.add('error');
+
                 setLoading(false);
 
             } else if (result.status === 400) {
-                var msg = result.data && result.data.message ? result.data.message : 'Identifier and password are required.';
+
+                var msg =
+                    result.data && result.data.message
+                        ? result.data.message
+                        : 'Identifier and password are required.';
+
                 showMessage(msg, 'error');
                 setLoading(false);
 
             } else if (result.status === 429) {
-                var rateMsg = result.data && result.data.message ? result.data.message : 'Too many login attempts. Please try again later.';
+
+                var rateMsg =
+                    result.data && result.data.message
+                        ? result.data.message
+                        : 'Too many login attempts. Please try again later.';
+
                 showMessage(rateMsg, 'error');
                 setLoading(false);
 
             } else if (result.status === 419) {
-                showMessage('Session expired. Please refresh the page and try again.', 'error');
+
+                showMessage(
+                    'Session expired. Please refresh the page and try again.',
+                    'error'
+                );
+
                 setLoading(false);
 
             } else if (result.status === 500) {
-                showMessage('Something went wrong. Please try again later.', 'error');
+
+                showMessage(
+                    'Something went wrong. Please try again later.',
+                    'error'
+                );
+
                 setLoading(false);
 
             } else {
-                var errorMsg = result.data && result.data.message ? result.data.message : 'An unexpected error occurred. Please try again.';
+
+                var errorMsg =
+                    result.data && result.data.message
+                        ? result.data.message
+                        : 'An unexpected error occurred. Please try again.';
+
                 showMessage(errorMsg, 'error');
                 setLoading(false);
             }
 
         } catch (error) {
-            showMessage('Network error. Please check your connection and try again.', 'error');
+
+            console.error('Login error:', error);
+
+            showMessage(
+                'Network error. Please check your connection and try again.',
+                'error'
+            );
+
             setLoading(false);
         }
     });

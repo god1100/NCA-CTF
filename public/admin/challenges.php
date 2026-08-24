@@ -1,27 +1,9 @@
 <?php
-require_once __DIR__ . '/admin-check.php'; 
-// Start session if not started
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+require_once __DIR__ . '/admin-check.php';
 
-// Check if user is logged in and has admin role
-if (!isset($_SESSION['user_id']) || !isset($_SESSION['role'])) {
-    header('Location: /login.php');
-    exit;
-}
-
-$allowedRoles = ['challenge_admin', 'super_admin'];
-if (!in_array($_SESSION['role'], $allowedRoles)) {
-    // Not admin - redirect to dashboard
-    header('Location: /dashboard.php');
-    exit;
-}
-
-$pageTitle = 'Dashboard';
-$currentPage = 'dashboard';
+$pageTitle = 'Challenges';
+$currentPage = 'challenges';
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -29,15 +11,15 @@ $currentPage = 'dashboard';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
     <title>Admin Challenges - NCA CTF</title>
-    <link rel="stylesheet" href="/assets/css/style.css">
-    <link rel="stylesheet" href="/admin/assets/css/admin.css">
+    <link rel="stylesheet" href="/NCA-CTF/public/assets/css/style.css">
+    <link rel="stylesheet" href="/NCA-CTF/public/admin/assets/css/admin.css">
 </head>
 <body class="admin-body">
     
     <!-- Sidebar -->
     <aside class="admin-sidebar" id="adminSidebar">
         <div class="admin-sidebar-brand">
-            <img src="/assets/images/NCA-logo.jpg" alt="NCA Logo">
+            <img src="/NCA-CTF/public/assets/images/NCA-logo.jpg" alt="NCA Logo">
             <div class="admin-sidebar-brand-text">
                 <span class="brand-nca">NCA</span>
                 <span class="brand-ctf">CTF Administration</span>
@@ -45,8 +27,8 @@ $currentPage = 'dashboard';
         </div>
         <nav class="admin-sidebar-nav">
             <div class="nav-label">Navigation</div>
-            <a href="/admin/index.php">📊 Dashboard</a>
-            <a href="/admin/challenges.php" class="active">🏆 Challenges</a>
+            <a href="/NCA-CTF/public/admin/index.php">📊 Dashboard</a>
+            <a href="/NCA-CTF/public/admin/challenges.php" class="active">🏆 Challenges</a>
             <div class="nav-divider"></div>
             <a href="#" id="adminLogoutBtn" class="nav-logout">🚪 Logout</a>
         </nav>
@@ -75,7 +57,6 @@ $currentPage = 'dashboard';
         </header>
 
         <div class="admin-content" id="adminContent">
-            <!-- Content rendered by JavaScript -->
             <div class="admin-loading">
                 <div class="spinner"></div>
                 Loading challenges...
@@ -95,8 +76,8 @@ $currentPage = 'dashboard';
         </div>
     </div>
 
-    <script src="/assets/js/api.js"></script>
-    <script src="/admin/assets/js/admin.js"></script>
-    <script src="/admin/assets/js/challenges.js"></script>
+    <script src="/NCA-CTF/public/assets/js/api.js"></script>
+    <script src="/NCA-CTF/public/admin/assets/js/admin.js"></script>
+    <script src="/NCA-CTF/public/admin/assets/js/challenges.js"></script>
 </body>
 </html>

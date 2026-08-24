@@ -1,20 +1,24 @@
 <?php
+
+declare(strict_types=1);
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Debug - show session data
-// Uncomment to see what's in session
-// echo "<pre>"; print_r($_SESSION); echo "</pre>"; exit;
-
-if (!isset($_SESSION['user_id']) || !isset($_SESSION['role_id'])) {
+if (!isset($_SESSION['user_id'], $_SESSION['role_id'])) {
     header('Location: /NCA-CTF/public/login.php');
     exit;
 }
 
-// role_id 2 = challenge_admin, 3 = super_admin
-if (!in_array($_SESSION['role_id'], [2, 3])) {
+/*
+ * Role IDs:
+ * 2 = challenge_admin
+ * 3 = super_admin
+ */
+$adminRoles = [2, 3];
+
+if (!in_array((int) $_SESSION['role_id'], $adminRoles, true)) {
     header('Location: /NCA-CTF/public/dashboard.php');
     exit;
 }
-?>
