@@ -155,15 +155,14 @@ class UserRepository
 
     /*
      * ============================================================
-     * Participant / User Management
+     * Participant Management
      * ============================================================
      */
 
     /**
-     * Return a paginated list of users.
+     * Return only users whose role is "participant".
      *
-     * The role name is included so the controller/service does not
-     * need to perform a separate query for every participant.
+     * Administrators and other roles are intentionally excluded.
      *
      * @return array{
      *     items: array<int, array<string, mixed>>,
@@ -181,7 +180,14 @@ class UserRepository
 
         $offset = ($page - 1) * $perPage;
 
-        $where = [];
+        /*
+         * Participants are identified by the role name rather
+         * than by a hard-coded role ID.
+         */
+        $where = [
+            "r.name = 'participant'"
+        ];
+
         $params = [];
 
         /*
@@ -209,18 +215,16 @@ class UserRepository
             $params[] = $status;
         }
 
-        $whereSql = '';
-
-        if ($where !== []) {
-            $whereSql = ' WHERE ' . implode(' AND ', $where);
-        }
+        $whereSql = ' WHERE ' . implode(' AND ', $where);
 
         /*
-         * Count matching users.
+         * Count only participant accounts.
          */
         $countSql = "
             SELECT COUNT(*)
             FROM users u
+            INNER JOIN roles r
+                ON r.id = u.role_id
             {$whereSql}
         ";
 
@@ -230,10 +234,7 @@ class UserRepository
         $total = (int) $countStmt->fetchColumn();
 
         /*
-         * Fetch actual rows.
-         *
-         * We join roles so the API can directly return the
-         * human-readable role name.
+         * Fetch only participant accounts.
          */
         $sql = "
             SELECT
@@ -247,7 +248,7 @@ class UserRepository
                 u.created_at,
                 u.last_login_at
             FROM users u
-            LEFT JOIN roles r
+            INNER JOIN roles r
                 ON r.id = u.role_id
             {$whereSql}
             ORDER BY u.created_at DESC, u.id DESC
@@ -267,7 +268,9 @@ class UserRepository
     }
 
     /**
-     * Find a participant together with their role name.
+     * Find a participant by ID.
+     *
+     * Returns NULL if the user exists but is not a participant.
      */
     public function findParticipantById(int $id): ?array
     {
@@ -283,9 +286,10 @@ class UserRepository
                 u.created_at,
                 u.last_login_at
              FROM users u
-             LEFT JOIN roles r
+             INNER JOIN roles r
                 ON r.id = u.role_id
-             WHERE u.id = ?'
+             WHERE u.id = ?
+               AND r.name = "participant"'
         );
 
         $stmt->execute([$id]);
@@ -296,7 +300,7 @@ class UserRepository
     }
 
     /**
-     * Update a user's account status.
+     * Update a participant's account status.
      */
     public function updateStatus(
         int $userId,
@@ -305,7 +309,12 @@ class UserRepository
         $stmt = $this->pdo->prepare(
             'UPDATE users
              SET status = ?
-             WHERE id = ?'
+             WHERE id = ?
+               AND role_id = (
+                   SELECT id
+                   FROM roles
+                   WHERE name = "participant"
+               )'
         );
 
         $stmt->execute([
@@ -317,17 +326,21 @@ class UserRepository
     }
 
     /**
-     * Delete a user permanently.
+     * Delete a participant permanently.
      *
-     * This method is intentionally kept separate from updateStatus()
-     * because the service layer will decide whether deletion is
-     * actually permitted.
+     * The role restriction prevents an administrator account
+     * from being deleted through the participant API.
      */
     public function deleteById(int $userId): bool
     {
         $stmt = $this->pdo->prepare(
             'DELETE FROM users
-             WHERE id = ?'
+             WHERE id = ?
+               AND role_id = (
+                   SELECT id
+                   FROM roles
+                   WHERE name = "participant"
+               )'
         );
 
         $stmt->execute([$userId]);

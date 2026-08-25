@@ -6,20 +6,32 @@
  * Universal admin layout/header/sidebar styles are untouched.
  */
 
+
+/* ============================================================
+   Participants Page
+============================================================ */
+
 .participants-page {
     width: 100%;
 }
+
+
+/* ------------------------------------------------------------
+   Header
+------------------------------------------------------------ */
 
 .participants-header {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
+
     gap: 24px;
     margin-bottom: 28px;
 }
 
 .participants-title {
     margin: 0;
+
     font-size: 28px;
     font-weight: 700;
     line-height: 1.2;
@@ -27,18 +39,20 @@
 
 .participants-subtitle {
     margin: 8px 0 0;
+
     font-size: 14px;
     opacity: 0.65;
 }
 
 
-/* ------------------------------------------------------------
+/* ============================================================
    Controls
------------------------------------------------------------- */
+============================================================ */
 
 .participants-controls {
     display: flex;
     align-items: flex-end;
+
     gap: 18px;
     margin-bottom: 20px;
 }
@@ -55,7 +69,9 @@
 .participants-search__label,
 .participants-filter__label {
     display: block;
+
     margin-bottom: 7px;
+
     font-size: 12px;
     font-weight: 600;
 }
@@ -64,12 +80,18 @@
 .participants-filter__select {
     width: 100%;
     height: 40px;
+
     padding: 0 12px;
+
     border: 1px solid rgba(128, 128, 128, 0.25);
     border-radius: 6px;
+
     background: transparent;
+
     font: inherit;
+
     outline: none;
+
     box-sizing: border-box;
 }
 
@@ -79,41 +101,51 @@
 }
 
 
-/* ------------------------------------------------------------
+/* ============================================================
    Table
------------------------------------------------------------- */
+============================================================ */
 
 .participants-table-card {
     width: 100%;
+
     overflow: hidden;
-    border: 1px solid rgba(128, 128, 128, 0.2);
+
+    border: 1px solid rgba(128, 128, 128, 0.20);
     border-radius: 8px;
 }
 
 .participants-table-wrapper {
     width: 100%;
+
     overflow-x: auto;
 }
 
 .participants-table {
     width: 100%;
     min-width: 900px;
+
     border-collapse: collapse;
 }
 
 .participants-table th,
 .participants-table td {
     padding: 14px 16px;
+
     text-align: left;
-    border-bottom: 1px solid rgba(128, 128, 128, 0.15);
+
+    border-bottom:
+        1px solid rgba(128, 128, 128, 0.15);
+
     white-space: nowrap;
 }
 
 .participants-table th {
     font-size: 11px;
     font-weight: 700;
+
     text-transform: uppercase;
     letter-spacing: 0.04em;
+
     opacity: 0.65;
 }
 
@@ -130,13 +162,14 @@
 }
 
 
-/* ------------------------------------------------------------
-   Participant identity
------------------------------------------------------------- */
+/* ============================================================
+   Participant Identity
+============================================================ */
 
 .participant-identity {
     display: flex;
     flex-direction: column;
+
     gap: 3px;
 }
 
@@ -150,120 +183,543 @@
 }
 
 
-/* ------------------------------------------------------------
+/* ============================================================
    Status
------------------------------------------------------------- */
+============================================================ */
 
 .participant-status {
     display: inline-flex;
     align-items: center;
+
     min-height: 24px;
+
     padding: 3px 9px;
+
     border: 1px solid currentColor;
     border-radius: 999px;
+
     font-size: 11px;
     font-weight: 600;
+
     text-transform: capitalize;
 }
 
 .participant-status--active {
+    color: #22c55e;
+
     opacity: 1;
 }
 
 .participant-status--suspended {
-    opacity: 0.75;
+    color: #f59e0b;
+
+    opacity: 1;
 }
 
 .participant-status--pending {
+    color: #a0a0a0;
+
     opacity: 0.65;
 }
 
 .participant-status--disqualified {
-    opacity: 0.55;
+    color: #ef4444;
+
+    opacity: 0.65;
 }
 
 
-/* ------------------------------------------------------------
+/* ============================================================
    Actions
------------------------------------------------------------- */
+============================================================ */
 
 .participant-actions {
     display: flex;
     align-items: center;
-    gap: 7px;
+
+    gap: 8px;
 }
 
 .participant-action {
-    height: 30px;
-    padding: 0 10px;
-    border: 1px solid rgba(128, 128, 128, 0.3);
-    border-radius: 5px;
+    height: 32px;
+
+    padding: 0 11px;
+
+    border: 1px solid transparent;
+    border-radius: 6px;
+
     background: transparent;
+
     font: inherit;
     font-size: 11px;
     font-weight: 600;
+
     cursor: pointer;
+
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease,
+        opacity 0.15s ease,
+        transform 0.1s ease;
 }
 
-.participant-action:hover {
-    background: rgba(128, 128, 128, 0.08);
-}
-
-.participant-action:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-}
-
-.participant-action--danger {
-    border-color: rgba(180, 50, 50, 0.45);
-}
-
-.participant-action--danger:hover {
-    background: rgba(180, 50, 50, 0.08);
+.participant-action:active {
+    transform: translateY(1px);
 }
 
 
 /* ------------------------------------------------------------
-   Loading / Empty
+   Suspend Button
 ------------------------------------------------------------ */
+
+.participant-action[data-action="suspend"] {
+    color: #f6c453;
+
+    background: rgba(245, 158, 11, 0.10);
+
+    border-color:
+        rgba(245, 158, 11, 0.35);
+}
+
+.participant-action[data-action="suspend"]:hover {
+    color: #ffd66b;
+
+    background: rgba(245, 158, 11, 0.18);
+
+    border-color:
+        rgba(245, 158, 11, 0.60);
+}
+
+
+/* ------------------------------------------------------------
+   Unsuspend Button
+------------------------------------------------------------ */
+
+.participant-action[data-action="unsuspend"] {
+    color: #4ade80;
+
+    background: rgba(34, 197, 94, 0.10);
+
+    border-color:
+        rgba(34, 197, 94, 0.35);
+}
+
+.participant-action[data-action="unsuspend"]:hover {
+    color: #6ee7a0;
+
+    background: rgba(34, 197, 94, 0.18);
+
+    border-color:
+        rgba(34, 197, 94, 0.60);
+}
+
+
+/* ------------------------------------------------------------
+   Delete Button
+------------------------------------------------------------ */
+
+.participant-action[data-action="delete"] {
+    color: #ff5c5c;
+
+    background: rgba(220, 38, 38, 0.09);
+
+    border-color:
+        rgba(220, 38, 38, 0.35);
+}
+
+.participant-action[data-action="delete"]:hover {
+    color: #ff7676;
+
+    background: rgba(220, 38, 38, 0.18);
+
+    border-color:
+        rgba(220, 38, 38, 0.60);
+}
+
+
+/* ------------------------------------------------------------
+   Disabled
+------------------------------------------------------------ */
+
+.participant-action:disabled {
+    opacity: 0.45;
+
+    cursor: not-allowed;
+
+    transform: none;
+}
+
+
+/* ============================================================
+   Loading / Empty
+============================================================ */
 
 .participants-loading td {
     padding: 42px 20px;
+
     text-align: center;
+
     opacity: 0.6;
 }
 
 .participants-empty {
     padding: 50px 20px;
+
     text-align: center;
 }
 
 .participants-empty h3 {
     margin: 0 0 7px;
+
     font-size: 16px;
 }
 
 .participants-empty p {
     margin: 0;
+
     font-size: 13px;
+
     opacity: 0.6;
 }
 
 
+/* ============================================================
+   Participant Action Modal
+   NCA CTF Dark Brown Theme
+============================================================ */
+
+body.modal-open {
+    overflow: hidden;
+}
+
+
 /* ------------------------------------------------------------
-   Responsive
+   Modal Container
 ------------------------------------------------------------ */
+
+.participant-modal {
+    position: fixed;
+    inset: 0;
+
+    z-index: 9999;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 20px;
+
+    visibility: hidden;
+    opacity: 0;
+
+    pointer-events: none;
+
+    transition:
+        opacity 0.2s ease,
+        visibility 0.2s ease;
+}
+
+.participant-modal--open {
+    visibility: visible;
+
+    opacity: 1;
+
+    pointer-events: auto;
+}
+
+
+/* ------------------------------------------------------------
+   Backdrop
+------------------------------------------------------------ */
+
+.participant-modal__backdrop {
+    position: absolute;
+    inset: 0;
+
+    background: rgba(0, 0, 0, 0.78);
+
+    backdrop-filter: blur(5px);
+}
+
+
+/* ------------------------------------------------------------
+   Dialog
+------------------------------------------------------------ */
+
+.participant-modal__dialog {
+    position: relative;
+
+    width: 100%;
+    max-width: 430px;
+
+    overflow: hidden;
+
+    background: #241b1b;
+
+    color: #ffffff;
+
+    border:
+        1px solid rgba(255, 255, 255, 0.10);
+
+    border-radius: 10px;
+
+    box-shadow:
+        0 25px 70px rgba(0, 0, 0, 0.65);
+
+    transform:
+        translateY(12px)
+        scale(0.98);
+
+    transition:
+        transform 0.2s ease;
+}
+
+.participant-modal--open
+.participant-modal__dialog {
+    transform:
+        translateY(0)
+        scale(1);
+}
+
+
+/* ============================================================
+   Modal Header
+============================================================ */
+
+.participant-modal__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 18px 20px;
+
+    background: #2B2121;
+
+    border-bottom:
+        1px solid rgba(255, 255, 255, 0.08);
+}
+
+.participant-modal__header h2 {
+    margin: 0;
+
+    color: #ffffff;
+
+    font-size: 17px;
+    font-weight: 700;
+
+    line-height: 1.3;
+}
+
+
+/* ============================================================
+   Modal Close Button
+============================================================ */
+
+.participant-modal__close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 30px;
+    height: 30px;
+
+    padding: 0;
+
+    border: 1px solid transparent;
+
+    border-radius: 6px;
+
+    background: transparent;
+
+    color:
+        rgba(255, 255, 255, 0.55);
+
+    font-size: 22px;
+
+    line-height: 1;
+
+    cursor: pointer;
+
+    transition:
+        background 0.15s ease,
+        color 0.15s ease;
+}
+
+.participant-modal__close:hover {
+    background:
+        rgba(255, 255, 255, 0.08);
+
+    color: #ffffff;
+}
+
+
+/* ============================================================
+   Modal Body
+============================================================ */
+
+.participant-modal__body {
+    padding: 24px 20px;
+
+    background: #241b1b;
+}
+
+.participant-modal__body p {
+    margin: 0;
+
+    color:
+        rgba(255, 255, 255, 0.70);
+
+    font-size: 14px;
+
+    line-height: 1.65;
+}
+
+
+/* ============================================================
+   Modal Footer
+============================================================ */
+
+.participant-modal__footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+
+    gap: 9px;
+
+    padding: 15px 20px;
+
+    background: #1A1A1A;
+
+    border-top:
+        1px solid rgba(255, 255, 255, 0.08);
+}
+
+
+/* ============================================================
+   Modal Buttons
+============================================================ */
+
+.participant-modal__button {
+    min-width: 90px;
+    height: 36px;
+
+    padding: 0 16px;
+
+    border-radius: 6px;
+
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+
+    cursor: pointer;
+
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease,
+        transform 0.1s ease,
+        opacity 0.15s ease;
+}
+
+.participant-modal__button:active {
+    transform: translateY(1px);
+}
+
+
+/* ============================================================
+   Modal Cancel Button
+============================================================ */
+
+.participant-modal__button--cancel {
+    border:
+        1px solid rgba(255, 255, 255, 0.13);
+
+    background: #2B2121;
+
+    color:
+        rgba(255, 255, 255, 0.72);
+}
+
+.participant-modal__button--cancel:hover {
+    background: #382929;
+
+    border-color:
+        rgba(255, 255, 255, 0.20);
+
+    color: #ffffff;
+}
+
+
+/* ============================================================
+   Modal Suspend / Confirm Button
+============================================================ */
+
+.participant-modal__button--confirm {
+    border: 1px solid #d69e2e;
+
+    background: #b7791f;
+
+    color: #ffffff;
+}
+
+.participant-modal__button--confirm:hover {
+    background: #d69e2e;
+
+    border-color: #d69e2e;
+
+    color: #ffffff;
+}
+
+
+/* ============================================================
+   Modal Delete / Danger Button
+============================================================ */
+
+.participant-modal__button--danger {
+    border: 1px solid #dc2626;
+
+    background: #dc2626;
+
+    color: #ffffff;
+}
+
+.participant-modal__button--danger:hover {
+    background: #b91c1c;
+
+    border-color: #b91c1c;
+
+    color: #ffffff;
+}
+
+
+/* ============================================================
+   Modal Button Disabled
+============================================================ */
+
+.participant-modal__button:disabled {
+    opacity: 0.45;
+
+    cursor: not-allowed;
+}
+
+
+/* ============================================================
+   Responsive
+============================================================ */
 
 @media (max-width: 760px) {
 
     .participants-controls {
         flex-direction: column;
+
         align-items: stretch;
     }
 
     .participants-search,
     .participants-filter {
         width: 100%;
+
         max-width: none;
     }
 
@@ -273,5 +729,25 @@
 
     .participants-title {
         font-size: 24px;
+    }
+}
+
+
+@media (max-width: 520px) {
+
+    .participant-modal {
+        padding: 15px;
+    }
+
+    .participant-modal__dialog {
+        max-width: 100%;
+    }
+
+    .participant-modal__footer {
+        flex-direction: column-reverse;
+    }
+
+    .participant-modal__button {
+        width: 100%;
     }
 }

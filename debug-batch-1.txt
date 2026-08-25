@@ -1,0 +1,868 @@
+
+==================== .\public\index.php ====================
+
+<?php
+
+declare(strict_types=1);
+
+/**
+ * NCA Batch 4 Private CTF — Front Controller
+ */
+
+$baseDir = dirname(__DIR__);
+
+/*
+|--------------------------------------------------------------------------
+| Determine base URL
+|--------------------------------------------------------------------------
+*/
+
+$protocol = (
+    isset($_SERVER['HTTPS']) &&
+    $_SERVER['HTTPS'] === 'on'
+) ? 'https://' : 'http://';
+
+$host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+
+$scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
+
+$basePath = rtrim(
+    dirname($scriptName),
+    '/\\'
+);
+
+$baseUrl = $protocol . $host . $basePath;
+
+/*
+ * Make base URL available to views.
+ */
+$GLOBALS['baseUrl'] = $baseUrl;
+
+
+/*
+|--------------------------------------------------------------------------
+| Autoloading
+|--------------------------------------------------------------------------
+*/
+
+if (is_file($baseDir . '/vendor/autoload.php')) {
+
+    require $baseDir . '/vendor/autoload.php';
+
+} else {
+
+    require $baseDir . '/app/Infrastructure/Autoloader.php';
+
+    \App\Infrastructure\Autoloader::register(
+        $baseDir . '/app'
+    );
+}
+
+
+use App\Infrastructure\Env;
+use App\Infrastructure\Router;
+use App\Infrastructure\Session;
+
+
+/*
+|--------------------------------------------------------------------------
+| Environment
+|--------------------------------------------------------------------------
+*/
+
+Env::load($baseDir . '/.env');
+
+$config = require $baseDir . '/config/app.php';
+
+
+/*
+|--------------------------------------------------------------------------
+| Security Headers
+|--------------------------------------------------------------------------
+*/
+
+header('X-Content-Type-Options: nosniff');
+
+header(
+    'Referrer-Policy: strict-origin-when-cross-origin'
+);
+
+header('X-Frame-Options: DENY');
+
+header(
+    "Content-Security-Policy: " .
+    "default-src 'self'; " .
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; " .
+    "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; " .
+    "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; " .
+    "img-src 'self' data:;"
+);
+
+
+/*
+|--------------------------------------------------------------------------
+| Error Handling
+|--------------------------------------------------------------------------
+*/
+
+error_reporting(E_ALL);
+
+ini_set(
+    'display_errors',
+    $config['debug'] ? '1' : '0'
+);
+
+ini_set('log_errors', '1');
+
+ini_set(
+    'error_log',
+    $baseDir . '/storage/logs/app.log'
+);
+
+
+/*
+|--------------------------------------------------------------------------
+| Request Information
+|--------------------------------------------------------------------------
+*/
+
+$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+
+$requestUri = $_SERVER['REQUEST_URI'] ?? '/';
+
+/*
+ * Remove query string.
+ */
+$requestPath = parse_url(
+    $requestUri,
+    PHP_URL_PATH
+) ?? '/';
+
+
+/*
+|--------------------------------------------------------------------------
+| Determine public directory
+|--------------------------------------------------------------------------
+*/
+
+$publicPath = str_replace(
+    '\\',
+    '/',
+    dirname(
+        $_SERVER['SCRIPT_NAME'] ?? '/index.php'
+    )
+);
+
+$publicPath = rtrim(
+    $publicPath,
+    '/'
+);
+
+
+/*
+|--------------------------------------------------------------------------
+| Remove public path
+|--------------------------------------------------------------------------
+*/
+
+if (
+    $publicPath !== '' &&
+    str_starts_with($requestPath, $publicPath)
+) {
+
+    $requestPath = substr(
+        $requestPath,
+        strlen($publicPath)
+    );
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Handle direct /index.php/... requests
+|--------------------------------------------------------------------------
+*/
+
+$requestPath = preg_replace(
+    '#^/index\.php#',
+    '',
+    $requestPath
+);
+
+
+/*
+|--------------------------------------------------------------------------
+| Normalize URI
+|--------------------------------------------------------------------------
+*/
+
+$uri = '/' . ltrim(
+    $requestPath ?: '/',
+    '/'
+);
+
+$uri = rtrim(
+    $uri,
+    '/'
+) ?: '/';
+
+
+/*
+|--------------------------------------------------------------------------
+| API Routes
+|--------------------------------------------------------------------------
+*/
+
+if (str_starts_with($uri, '/api/')) {
+
+    Session::start();
+
+    $router = new Router();
+
+    $registerRoutes = require $baseDir . '/routes/api.php';
+
+    $registerRoutes($router);
+
+    $router->dispatch(
+        $method,
+        $uri
+    );
+
+    exit;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Frontend Routes
+|--------------------------------------------------------------------------
+*/
+
+switch ($uri) {
+
+    case '/challenges':
+
+        require $baseDir .
+            '/resources/views/challenges.php';
+
+        exit;
+
+
+    case '/login':
+
+        require $baseDir .
+            '/public/login.php';
+
+        exit;
+
+
+    case '/register':
+
+        require $baseDir .
+            '/public/register.php';
+
+        exit;
+
+
+    case '/about':
+
+        require $baseDir .
+            '/public/about.php';
+
+        exit;
+
+
+    case '/dashboard':
+
+        require $baseDir .
+            '/public/dashboard.php';
+
+        exit;
+
+
+    default:
+
+        require $baseDir .
+            '/resources/views/landing.php';
+
+        exit;
+}
+
+==================== .\routes\api.php ====================
+
+<?php
+
+declare(strict_types=1);
+
+/**
+ * API route definitions.
+ *
+ * Phase 0 scope: a single health-check endpoint only. Business endpoints
+ * (auth, teams, challenges, submissions, leaderboard, admin, integrity)
+ * are intentionally NOT defined here — see docs/ctf5.txt for the full
+ * planned API surface and docs/ctf9.txt §31 for phase sequencing.
+ *
+ * This file returns a callback that registers routes onto the given
+ * App\Infrastructure\Router instance, keeping route wiring separate
+ * from the front controller.
+ */
+
+use App\Controllers\AuthController;
+use App\Controllers\ParticipantController;
+use App\Controllers\ChallengeController;
+use App\Controllers\ChallengeFileController;
+use App\Controllers\ChallengeHintController;
+use App\Controllers\FlagController;
+use App\Controllers\HealthController;
+use App\Controllers\TeamController;
+use App\Controllers\TeamInvitationController;
+use App\Infrastructure\Router;
+
+return static function (Router $router): void {
+    $router->get('/api/v1/health', static function (): void {
+        (new HealthController())->index();
+    });
+
+    // --- Authentication (Phase 2) -------------------------------------
+    $router->post('/api/v1/auth/register', static function (): void {
+        (new AuthController())->register();
+    });
+
+    $router->post('/api/v1/auth/login', static function (): void {
+        (new AuthController())->login();
+    });
+
+    $router->post('/api/v1/auth/logout', static function (): void {
+        (new AuthController())->logout();
+    });
+
+    $router->get('/api/v1/auth/me', static function (): void {
+        (new AuthController())->me();
+    });
+
+    // --- Teams (Phase 3) ------------------------------------------------
+    $router->post('/api/v1/teams', static function (): void {
+        (new TeamController())->create();
+    });
+
+    $router->get('/api/v1/teams/me', static function (): void {
+        (new TeamController())->me();
+    });
+
+    $router->get('/api/v1/teams/me/members', static function (): void {
+        (new TeamController())->members();
+    });
+
+    $router->delete('/api/v1/teams/me/members/{user_id}', static function (array $params): void {
+        (new TeamController())->removeMember($params);
+    });
+
+    $router->post('/api/v1/teams/me/leave', static function (): void {
+        (new TeamController())->leave();
+    });
+
+    $router->post('/api/v1/teams/me/transfer-captain', static function (): void {
+        (new TeamController())->transferCaptain();
+    });
+
+    $router->get('/api/v1/teams/{id}', static function (array $params): void {
+        (new TeamController())->show($params);
+    });
+
+    // --- Team invitations (Phase 3) --------------------------------------
+    $router->post('/api/v1/teams/me/invitations', static function (): void {
+        (new TeamInvitationController())->create();
+    });
+
+    $router->get('/api/v1/teams/me/invitations', static function (): void {
+        (new TeamInvitationController())->list();
+    });
+
+    $router->post('/api/v1/team-invitations/{token}/accept', static function (array $params): void {
+        (new TeamInvitationController())->accept($params);
+    });
+
+    $router->post('/api/v1/team-invitations/{token}/reject', static function (array $params): void {
+        (new TeamInvitationController())->reject($params);
+    });
+
+    // --- Challenges (Phase 4) --------------------------------------------
+    $router->get('/api/v1/categories', static function (): void {
+        (new ChallengeController())->categories();
+    });
+
+    $router->get('/api/v1/challenges', static function (): void {
+        (new ChallengeController())->index();
+    });
+
+    $router->post('/api/v1/challenges', static function (): void {
+        (new ChallengeController())->create();
+    });
+
+    $router->patch('/api/v1/admin/participants/{id}/status', static function (array $params): void {
+        (new ChallengeController())->update($params);
+    });
+
+    $router->delete('/api/v1/challenges/{id}', static function (array $params): void {
+        (new ChallengeController())->delete($params);
+    });
+
+    $router->post('/api/v1/challenges/{id}/publish', static function (array $params): void {
+        (new ChallengeController())->publish($params);
+    });
+
+    $router->post('/api/v1/challenges/{id}/pause', static function (array $params): void {
+        (new ChallengeController())->pause($params);
+    });
+
+    $router->post('/api/v1/challenges/{id}/archive', static function (array $params): void {
+        (new ChallengeController())->archive($params);
+    });
+
+    // --- Challenge files (Phase 4) ---------------------------------------
+    $router->post('/api/v1/challenges/{id}/files', static function (array $params): void {
+        (new ChallengeFileController())->upload($params);
+    });
+
+    $router->get('/api/v1/challenges/{id}/files', static function (array $params): void {
+        (new ChallengeFileController())->listForChallenge($params);
+    });
+
+    $router->get('/api/v1/challenge-files/{id}/download', static function (array $params): void {
+        (new ChallengeFileController())->download($params);
+    });
+
+    $router->delete('/api/v1/challenge-files/{id}', static function (array $params): void {
+        (new ChallengeFileController())->delete($params);
+    });
+
+    // --- Challenge hints (Phase 4) ----------------------------------------
+    $router->post('/api/v1/challenges/{id}/hints', static function (array $params): void {
+        (new ChallengeHintController())->create($params);
+    });
+
+    $router->get('/api/v1/challenges/{id}/hints', static function (array $params): void {
+        (new ChallengeHintController())->listForChallenge($params);
+    });
+
+    $router->put('/api/v1/challenge-hints/{id}', static function (array $params): void {
+        (new ChallengeHintController())->update($params);
+    });
+
+    $router->delete('/api/v1/challenge-hints/{id}', static function (array $params): void {
+        (new ChallengeHintController())->remove($params);
+    });
+
+    $router->post('/api/v1/challenge-hints/{id}/reveal', static function (array $params): void {
+        (new ChallengeHintController())->reveal($params);
+    });
+
+    // --- Challenge flags (Phase 4, management only) ------------------------
+    $router->post('/api/v1/challenges/{id}/flag', static function (array $params): void {
+        (new FlagController())->create($params);
+    });
+
+    $router->put('/api/v1/challenges/{id}/flag', static function (array $params): void {
+        (new FlagController())->replace($params);
+    });
+
+    $router->get('/api/v1/challenges/{id}/flag', static function (array $params): void {
+        (new FlagController())->show($params);
+    });
+    $router->post('/api/v1/auth/change-password', static function (): void {
+        (new \App\Controllers\PasswordController())->changePassword();
+    });
+
+    // --- Admin Participants ------------------------------------------------
+
+    $router->get('/api/v1/admin/participants', static function (): void {
+        (new ParticipantController())->index();
+    });
+
+    $router->get('/api/v1/admin/participants/{id}', static function (array $params): void {
+        (new ParticipantController())->show($params);
+    });
+    $router->patch('/api/v1/admin/participants/{id}/status', static function (array $params): void {
+        (new ParticipantController())->updateStatus($params);
+    });
+    $router->delete('/api/v1/admin/participants/{id}', static function (array $params): void {
+        (new ParticipantController())->delete($params);
+    });
+
+    // NOTE: GET /api/v1/challenges/{identifier} (single-segment
+    // slug-or-id lookup) is registered LAST among GET routes so the more
+    // specific multi-segment routes above (e.g. /challenges/{id}/files)
+    // are matched first -- see App\Infrastructure\Router::dispatch(),
+    // which matches in registration order.
+    $router->get('/api/v1/challenges/{identifier}', static function (array $params): void {
+        (new ChallengeController())->show($params);
+    });
+};
+
+
+==================== .\app\Infrastructure\Router.php ====================
+
+<?php
+
+declare(strict_types=1);
+
+namespace App\Infrastructure;
+
+/**
+ * Request router.
+ *
+ * Phase 0 introduced exact-path GET/POST matching only. Phase 3 extends
+ * this — exactly as anticipated in the original class comment — to
+ * support DELETE/PUT/PATCH and `{param}` path segments (e.g.
+ * `/teams/me/members/{user_id}`), needed for team member and invitation
+ * endpoints. Exact-path routes registered by earlier phases (e.g.
+ * `/api/v1/auth/login`) continue to work unchanged: a literal path is
+ * just a pattern with zero parameters.
+ *
+ * Still intentionally minimal: no route groups, no global middleware
+ * stack. Middleware composition continues to happen inside each route's
+ * closure, as established in Phase 2 (AuthMiddleware::handle(...)).
+ */
+final class Router
+{
+    /**
+     * @var array<string, list<array{pattern: string, paramNames: list<string>, handler: callable}>>
+     */
+    private array $routes = [];
+
+    public function get(string $path, callable $handler): void
+    {
+        $this->add('GET', $path, $handler);
+    }
+
+    public function post(string $path, callable $handler): void
+    {
+        $this->add('POST', $path, $handler);
+    }
+
+    public function put(string $path, callable $handler): void
+    {
+        $this->add('PUT', $path, $handler);
+    }
+
+    public function patch(string $path, callable $handler): void
+    {
+        $this->add('PATCH', $path, $handler);
+    }
+    public function delete(string $path, callable $handler): void
+    {
+        $this->add('DELETE', $path, $handler);
+    }
+
+    private function add(string $method, string $path, callable $handler): void
+    {
+        [$pattern, $paramNames] = self::compile($path);
+        $this->routes[$method][] = [
+            'pattern' => $pattern,
+            'paramNames' => $paramNames,
+            'handler' => $handler,
+        ];
+    }
+
+    /**
+     * Converts a path like `/api/v1/teams/me/members/{user_id}` into a
+     * regex and the ordered list of parameter names it captures.
+     *
+     * @return array{0: string, 1: list<string>}
+     */
+    private static function compile(string $path): array
+    {
+        $paramNames = [];
+        $regex = preg_replace_callback(
+            '#\{([a-zA-Z_][a-zA-Z0-9_]*)\}#',
+            static function (array $m) use (&$paramNames): string {
+                $paramNames[] = $m[1];
+                // Path segments only -- no slashes inside a captured param.
+                return '([^/]+)';
+            },
+            $path
+        );
+
+        return ['#^' . $regex . '$#', $paramNames];
+    }
+
+    public function dispatch(string $method, string $path): void
+    {
+        $method = strtoupper($method);
+        $path = rtrim($path, '/');
+        if ($path === '') {
+            $path = '/';
+        }
+
+        foreach ($this->routes[$method] ?? [] as $route) {
+            if (preg_match($route['pattern'], $path, $matches) === 1) {
+                $params = [];
+                foreach ($route['paramNames'] as $i => $name) {
+                    $params[$name] = urldecode($matches[$i + 1]);
+                }
+
+                ($route['handler'])($params);
+                return;
+            }
+        }
+
+        $this->notFound();
+    }
+
+    private function notFound(): void
+    {
+        http_response_code(404);
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'error' => [
+                'code' => 'NOT_FOUND',
+                'message' => 'The requested resource could not be found.',
+            ],
+        ], JSON_PRETTY_PRINT);
+    }
+}
+
+
+==================== .\app\Infrastructure\Session.php ====================
+
+<?php
+
+declare(strict_types=1);
+
+namespace App\Infrastructure;
+
+/**
+ * Native PHP session bootstrap and helpers.
+ *
+ * No Redis, no custom session handler -- native PHP sessions per
+ * docs/ctf9.txt §27. Cookie flags follow docs/ctf5.txt §6 and
+ * ctf9.txt §6: HttpOnly, Secure (in non-local environments), SameSite.
+ */
+final class Session
+{
+    private static bool $started = false;
+
+    public static function start(): void
+    {
+        if (self::$started || session_status() === PHP_SESSION_ACTIVE) {
+            self::$started = true;
+            return;
+        }
+
+        $isProduction = Env::get('APP_ENV', 'local') === 'production';
+        $lifetime = (int) Env::get('SESSION_LIFETIME_SECONDS', '7200');
+
+        session_set_cookie_params([
+            'lifetime' => $lifetime,
+            'path' => '/',
+            'domain' => '',
+            'secure' => $isProduction,
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+
+        ini_set('session.use_strict_mode', '1');
+        ini_set('session.use_only_cookies', '1');
+        ini_set('session.gc_maxlifetime', (string) $lifetime);
+
+        session_name('nca_ctf_session');
+        session_start();
+        self::$started = true;
+    }
+
+    /**
+     * Regenerate the session ID while preserving session data. MUST be
+     * called immediately after successful login to prevent session
+     * fixation (docs/ctf5.txt §10, ctf9.txt §6).
+     */
+    public static function regenerate(): void
+    {
+        session_regenerate_id(true);
+    }
+
+    public static function destroy(): void
+    {
+        $_SESSION = [];
+
+        if (ini_get('session.use_cookies')) {
+            $params = session_get_cookie_params();
+            setcookie(
+                session_name(),
+                '',
+                [
+                    'expires' => time() - 42000,
+                    'path' => $params['path'],
+                    'domain' => $params['domain'],
+                    'secure' => $params['secure'],
+                    'httponly' => $params['httponly'],
+                    'samesite' => $params['samesite'],
+                ]
+            );
+        }
+
+        session_destroy();
+    }
+
+    public static function get(string $key, mixed $default = null): mixed
+    {
+        return $_SESSION[$key] ?? $default;
+    }
+
+    public static function set(string $key, mixed $value): void
+    {
+        $_SESSION[$key] = $value;
+    }
+
+    public static function remove(string $key): void
+    {
+        unset($_SESSION[$key]);
+    }
+
+    public static function has(string $key): bool
+    {
+        return isset($_SESSION[$key]);
+    }
+}
+
+
+==================== .\app\Infrastructure\Csrf.php ====================
+
+<?php
+
+declare(strict_types=1);
+
+namespace App\Infrastructure;
+
+/**
+ * Session-bound CSRF token (synchronizer token pattern).
+ *
+ * Applied to state-changing requests made by an authenticated session
+ * (docs/ctf5.txt §55, ctf9.txt §12 request required functionality #12).
+ * The token is issued once per session and must be sent back in the
+ * X-CSRF-Token header for protected requests.
+ */
+final class Csrf
+{
+    private const SESSION_KEY = '_csrf_token';
+
+    public static function token(): string
+    {
+        if (!Session::has(self::SESSION_KEY)) {
+            Session::set(self::SESSION_KEY, bin2hex(random_bytes(32)));
+        }
+
+        return Session::get(self::SESSION_KEY);
+    }
+
+    public static function verify(?string $submittedToken): bool
+    {
+        $expected = Session::get(self::SESSION_KEY);
+
+        if (!is_string($expected) || !is_string($submittedToken) || $submittedToken === '') {
+            return false;
+        }
+
+        return hash_equals($expected, $submittedToken);
+    }
+
+    public static function rotate(): void
+    {
+        Session::set(self::SESSION_KEY, bin2hex(random_bytes(32)));
+    }
+}
+
+
+==================== .\app\Infrastructure\Database.php ====================
+
+<?php
+
+declare(strict_types=1);
+
+namespace App\Infrastructure;
+
+use PDO;
+use PDOException;
+use RuntimeException;
+
+/**
+ * Minimal PDO connection factory.
+ *
+ * Phase 1 scope: a single lazily-created PDO connection using credentials
+ * from the environment. No ORM, no query builder, no ActiveRecord — every
+ * later phase talks to the database through prepared statements via this
+ * connection (docs/ctf9.txt §2, ctf4.txt §46).
+ *
+ * The connection uses the application-level DB user (never a root/admin
+ * database account) — see docs/ctf4.txt §39 and .env.example.
+ */
+final class Database
+{
+    private static ?PDO $connection = null;
+
+    public static function connection(): PDO
+    {
+        if (self::$connection !== null) {
+            return self::$connection;
+        }
+
+        $host = Env::get('DB_HOST', '127.0.0.1');
+        $port = Env::get('DB_PORT', '3306');
+        $database = Env::get('DB_DATABASE', 'nca_ctf');
+        $username = Env::get('DB_USERNAME', 'nca_ctf_app');
+        $password = Env::get('DB_PASSWORD', '');
+        $charset = Env::get('DB_CHARSET', 'utf8mb4');
+
+        $dsn = sprintf(
+            'mysql:host=%s;port=%s;dbname=%s;charset=%s',
+            $host,
+            $port,
+            $database,
+            $charset
+        );
+
+        try {
+            self::$connection = new PDO($dsn, $username, $password, [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false,
+            ]);
+        } catch (PDOException $e) {
+            // Never leak DSN/credentials or the raw driver exception in
+            // production. Callers (health checks, migration runner) decide
+            // how much detail to surface based on APP_DEBUG.
+            throw new RuntimeException('Database connection failed.', 0, $e);
+        }
+
+        return self::$connection;
+    }
+
+    /**
+     * For tooling (migration runner, seeders, tests) that need to target a
+     * database other than the one configured via DB_DATABASE, e.g. a
+     * dedicated test database.
+     */
+    public static function connectTo(string $database): PDO
+    {
+        $host = Env::get('DB_HOST', '127.0.0.1');
+        $port = Env::get('DB_PORT', '3306');
+        $username = Env::get('DB_USERNAME', 'nca_ctf_app');
+        $password = Env::get('DB_PASSWORD', '');
+        $charset = Env::get('DB_CHARSET', 'utf8mb4');
+
+        $dsn = sprintf(
+            'mysql:host=%s;port=%s;dbname=%s;charset=%s',
+            $host,
+            $port,
+            $database,
+            $charset
+        );
+
+        return new PDO($dsn, $username, $password, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+        ]);
+    }
+}
+

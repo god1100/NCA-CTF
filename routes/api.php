@@ -106,11 +106,7 @@ return static function (Router $router): void {
     $router->post('/api/v1/challenges', static function (): void {
         (new ChallengeController())->create();
     });
-
-    $router->patch('/api/v1/admin/participants/{id}/status', static function (array $params): void {
-        (new ChallengeController())->update($params);
-    });
-
+    
     $router->delete('/api/v1/challenges/{id}', static function (array $params): void {
         (new ChallengeController())->delete($params);
     });
