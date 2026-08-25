@@ -17,76 +17,328 @@ class UserRepository
 
     public function findById(int $id): ?array
     {
-        $stmt = $this->pdo->prepare('SELECT * FROM users WHERE id = ?');
+        $stmt = $this->pdo->prepare(
+            'SELECT * FROM users WHERE id = ?'
+        );
+
         $stmt->execute([$id]);
+
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
         return $result ?: null;
     }
 
     public function findByUsername(string $username): ?array
     {
-        $stmt = $this->pdo->prepare('SELECT * FROM users WHERE username = ?');
+        $stmt = $this->pdo->prepare(
+            'SELECT * FROM users WHERE username = ?'
+        );
+
         $stmt->execute([$username]);
+
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
         return $result ?: null;
     }
 
     public function findByEmail(string $email): ?array
     {
-        $stmt = $this->pdo->prepare('SELECT * FROM users WHERE email = ?');
+        $stmt = $this->pdo->prepare(
+            'SELECT * FROM users WHERE email = ?'
+        );
+
         $stmt->execute([$email]);
+
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
         return $result ?: null;
     }
 
     public function findByIdentifier(string $identifier): ?array
     {
-        $stmt = $this->pdo->prepare('SELECT * FROM users WHERE username = ? OR email = ?');
+        $stmt = $this->pdo->prepare(
+            'SELECT * FROM users WHERE username = ? OR email = ?'
+        );
+
         $stmt->execute([$identifier, $identifier]);
+
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
         return $result ?: null;
     }
 
-    public function create(string $username, string $email, string $passwordHash, ?string $fullName, int $roleId): int
-    {
+    public function create(
+        string $username,
+        string $email,
+        string $passwordHash,
+        ?string $fullName,
+        int $roleId
+    ): int {
         $stmt = $this->pdo->prepare(
-            'INSERT INTO users (username, email, password_hash, full_name, role_id, status, created_at)
-             VALUES (?, ?, ?, ?, ?, "active", NOW())'
+            'INSERT INTO users
+                (username, email, password_hash, full_name, role_id, status, created_at)
+             VALUES
+                (?, ?, ?, ?, ?, "active", NOW())'
         );
-        $stmt->execute([$username, $email, $passwordHash, $fullName, $roleId]);
+
+        $stmt->execute([
+            $username,
+            $email,
+            $passwordHash,
+            $fullName,
+            $roleId
+        ]);
+
         return (int) $this->pdo->lastInsertId();
     }
 
     public function updateLastLogin(int $userId): void
     {
-        $stmt = $this->pdo->prepare('UPDATE users SET last_login_at = NOW() WHERE id = ?');
+        $stmt = $this->pdo->prepare(
+            'UPDATE users
+             SET last_login_at = NOW()
+             WHERE id = ?'
+        );
+
         $stmt->execute([$userId]);
     }
 
-    public function updatePassword(int $userId, string $passwordHash): void
-    {
-        $stmt = $this->pdo->prepare('UPDATE users SET password_hash = ? WHERE id = ?');
-        $stmt->execute([$passwordHash, $userId]);
+    public function updatePassword(
+        int $userId,
+        string $passwordHash
+    ): void {
+        $stmt = $this->pdo->prepare(
+            'UPDATE users
+             SET password_hash = ?
+             WHERE id = ?'
+        );
+
+        $stmt->execute([
+            $passwordHash,
+            $userId
+        ]);
     }
 
     public function roleIdByName(string $roleName): ?int
     {
-        $stmt = $this->pdo->prepare('SELECT id FROM roles WHERE name = ?');
+        $stmt = $this->pdo->prepare(
+            'SELECT id
+             FROM roles
+             WHERE name = ?'
+        );
+
         $stmt->execute([$roleName]);
+
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $result ? (int) $result['id'] : null;
+
+        return $result
+            ? (int) $result['id']
+            : null;
     }
 
     public function roleName(int $roleId): ?string
     {
-        $stmt = $this->pdo->prepare('SELECT name FROM roles WHERE id = ?');
+        $stmt = $this->pdo->prepare(
+            'SELECT name
+             FROM roles
+             WHERE id = ?'
+        );
+
         $stmt->execute([$roleId]);
+
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $result ? $result['name'] : null;
+
+        return $result
+            ? $result['name']
+            : null;
     }
 
-    public static function toPublicArray(array $user, string $roleName): array
+    /*
+     * ============================================================
+     * Participant / User Management
+     * ============================================================
+     */
+
+    /**
+     * Return a paginated list of users.
+     *
+     * The role name is included so the controller/service does not
+     * need to perform a separate query for every participant.
+     *
+     * @return array{
+     *     items: array<int, array<string, mixed>>,
+     *     total: int
+     * }
+     */
+    public function paginateParticipants(
+        int $page,
+        int $perPage,
+        ?string $search = null,
+        ?string $status = null
+    ): array {
+        $page = max(1, $page);
+        $perPage = max(1, $perPage);
+
+        $offset = ($page - 1) * $perPage;
+
+        $where = [];
+        $params = [];
+
+        /*
+         * Search username, full name, and email.
+         */
+        if ($search !== null && trim($search) !== '') {
+            $where[] = '(
+                u.username LIKE ?
+                OR u.full_name LIKE ?
+                OR u.email LIKE ?
+            )';
+
+            $searchValue = '%' . trim($search) . '%';
+
+            $params[] = $searchValue;
+            $params[] = $searchValue;
+            $params[] = $searchValue;
+        }
+
+        /*
+         * Optional status filter.
+         */
+        if ($status !== null && $status !== '') {
+            $where[] = 'u.status = ?';
+            $params[] = $status;
+        }
+
+        $whereSql = '';
+
+        if ($where !== []) {
+            $whereSql = ' WHERE ' . implode(' AND ', $where);
+        }
+
+        /*
+         * Count matching users.
+         */
+        $countSql = "
+            SELECT COUNT(*)
+            FROM users u
+            {$whereSql}
+        ";
+
+        $countStmt = $this->pdo->prepare($countSql);
+        $countStmt->execute($params);
+
+        $total = (int) $countStmt->fetchColumn();
+
+        /*
+         * Fetch actual rows.
+         *
+         * We join roles so the API can directly return the
+         * human-readable role name.
+         */
+        $sql = "
+            SELECT
+                u.id,
+                u.username,
+                u.email,
+                u.full_name,
+                u.role_id,
+                r.name AS role,
+                u.status,
+                u.created_at,
+                u.last_login_at
+            FROM users u
+            LEFT JOIN roles r
+                ON r.id = u.role_id
+            {$whereSql}
+            ORDER BY u.created_at DESC, u.id DESC
+            LIMIT {$perPage}
+            OFFSET {$offset}
+        ";
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+
+        $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        return [
+            'items' => $items,
+            'total' => $total,
+        ];
+    }
+
+    /**
+     * Find a participant together with their role name.
+     */
+    public function findParticipantById(int $id): ?array
     {
+        $stmt = $this->pdo->prepare(
+            'SELECT
+                u.id,
+                u.username,
+                u.email,
+                u.full_name,
+                u.role_id,
+                r.name AS role,
+                u.status,
+                u.created_at,
+                u.last_login_at
+             FROM users u
+             LEFT JOIN roles r
+                ON r.id = u.role_id
+             WHERE u.id = ?'
+        );
+
+        $stmt->execute([$id]);
+
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return $result ?: null;
+    }
+
+    /**
+     * Update a user's account status.
+     */
+    public function updateStatus(
+        int $userId,
+        string $status
+    ): bool {
+        $stmt = $this->pdo->prepare(
+            'UPDATE users
+             SET status = ?
+             WHERE id = ?'
+        );
+
+        $stmt->execute([
+            $status,
+            $userId
+        ]);
+
+        return $stmt->rowCount() > 0;
+    }
+
+    /**
+     * Delete a user permanently.
+     *
+     * This method is intentionally kept separate from updateStatus()
+     * because the service layer will decide whether deletion is
+     * actually permitted.
+     */
+    public function deleteById(int $userId): bool
+    {
+        $stmt = $this->pdo->prepare(
+            'DELETE FROM users
+             WHERE id = ?'
+        );
+
+        $stmt->execute([$userId]);
+
+        return $stmt->rowCount() > 0;
+    }
+
+    public static function toPublicArray(
+        array $user,
+        string $roleName
+    ): array {
         return [
             'id' => (int) $user['id'],
             'username' => $user['username'],

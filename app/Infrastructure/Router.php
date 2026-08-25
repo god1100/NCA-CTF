@@ -41,6 +41,10 @@ final class Router
         $this->add('PUT', $path, $handler);
     }
 
+    public function patch(string $path, callable $handler): void
+    {
+        $this->add('PATCH', $path, $handler);
+    }
     public function delete(string $path, callable $handler): void
     {
         $this->add('DELETE', $path, $handler);

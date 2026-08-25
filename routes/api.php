@@ -16,6 +16,7 @@ declare(strict_types=1);
  */
 
 use App\Controllers\AuthController;
+use App\Controllers\ParticipantController;
 use App\Controllers\ChallengeController;
 use App\Controllers\ChallengeFileController;
 use App\Controllers\ChallengeHintController;
@@ -106,7 +107,7 @@ return static function (Router $router): void {
         (new ChallengeController())->create();
     });
 
-    $router->put('/api/v1/challenges/{id}', static function (array $params): void {
+    $router->patch('/api/v1/admin/participants/{id}/status', static function (array $params): void {
         (new ChallengeController())->update($params);
     });
 
@@ -178,6 +179,22 @@ return static function (Router $router): void {
     });
     $router->post('/api/v1/auth/change-password', static function (): void {
         (new \App\Controllers\PasswordController())->changePassword();
+    });
+
+    // --- Admin Participants ------------------------------------------------
+
+    $router->get('/api/v1/admin/participants', static function (): void {
+        (new ParticipantController())->index();
+    });
+
+    $router->get('/api/v1/admin/participants/{id}', static function (array $params): void {
+        (new ParticipantController())->show($params);
+    });
+    $router->patch('/api/v1/admin/participants/{id}/status', static function (array $params): void {
+        (new ParticipantController())->updateStatus($params);
+    });
+    $router->delete('/api/v1/admin/participants/{id}', static function (array $params): void {
+        (new ParticipantController())->delete($params);
     });
 
     // NOTE: GET /api/v1/challenges/{identifier} (single-segment
